@@ -83,13 +83,54 @@ export function OrgDashboard() {
     setPage(1);
   };
 
+  const detectCsvDelimiter = (headerLine: string) => {
+    const delimiterCandidates = [',', ';', '\t'];
+    const scores = delimiterCandidates.map((delimiter) => ({
+      delimiter,
+      count: (headerLine.match(new RegExp(`\\${delimiter}`, 'g')) || []).length
+    }));
+    scores.sort((a, b) => b.count - a.count);
+    return scores[0]?.count ? scores[0].delimiter : ',';
+  };
+
+  const parseCsvRow = (line: string, delimiter: string) => {
+    const cells: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+
+      if (char === delimiter && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
+        continue;
+      }
+
+      current += char;
+    }
+
+    cells.push(current.trim());
+    return cells;
+  };
+
   const onCsvFile = async (file?: File | null) => {
     if (!file) return;
 
     const text = await file.text();
     const lines = text
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .map((line) => line.trim().replace(/^\uFEFF/, ''))
       .filter(Boolean);
 
     if (!lines.length) {
@@ -100,7 +141,8 @@ export function OrgDashboard() {
       return;
     }
 
-    const parsed = lines.map((line) => line.split(',').map((cell) => cell.trim().replace(/^"|"$/g, '')));
+    const delimiter = detectCsvDelimiter(lines[0]);
+    const parsed = lines.map((line) => parseCsvRow(line, delimiter));
     const [headers, ...rows] = parsed;
     if (!headers?.length) {
       setCsvError('Impossible de lire les entêtes du CSV.');
