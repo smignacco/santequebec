@@ -11,6 +11,7 @@ export function AdminDashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [selectedFileId, setSelectedFileId] = useState('');
   const [details, setDetails] = useState<any | null>(null);
+  const [supportContactDraft, setSupportContactDraft] = useState('');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
@@ -33,6 +34,7 @@ export function AdminDashboard() {
   const loadOrgDetails = async (orgId: string) => {
     const data = await api(`/admin/orgs/${orgId}/details`);
     setDetails(data);
+    setSupportContactDraft(data.org?.supportContactEmail || '');
     setSelectedOrgId(orgId);
     setSelectedFileId('');
     setInventoryItems([]);
@@ -147,6 +149,16 @@ export function AdminDashboard() {
     if (selectedFileId) {
       await loadInventory(selectedFileId);
     }
+  };
+
+  const updateSupportContact = async () => {
+    if (!selectedOrgId) return;
+    await api(`/admin/orgs/${selectedOrgId}/support-contact`, {
+      method: 'PATCH',
+      body: JSON.stringify({ supportContactEmail: supportContactDraft.trim() || null })
+    });
+    setMessage('Contact technique MS Teams mis à jour.');
+    await loadOrgDetails(selectedOrgId);
   };
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
@@ -288,7 +300,21 @@ export function AdminDashboard() {
             <section className="panel stack">
               <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
               <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
-              <p>Contact support Teams: {details.org.supportContactEmail || 'Non configuré'}</p>
+              <div className="stack">
+                <label htmlFor="supportContactEmail"><strong>Contact technique MS Teams</strong></label>
+                <div className="button-row">
+                  <input
+                    id="supportContactEmail"
+                    className="input"
+                    type="email"
+                    placeholder="Courriel contact support (MS Teams)"
+                    value={supportContactDraft}
+                    onChange={(e) => setSupportContactDraft(e.target.value)}
+                  />
+                  <button className="button" type="button" onClick={updateSupportContact}>Enregistrer</button>
+                </div>
+                <p>Valeur actuelle: {details.org.supportContactEmail || 'Non configuré'}</p>
+              </div>
               <h4>Inventaires chargés</h4>
               <div className="table-wrap">
                 <table>

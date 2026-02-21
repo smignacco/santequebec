@@ -127,6 +127,16 @@ export class AdminController {
     });
   }
 
+  @Patch('orgs/:orgId/support-contact')
+  async updateOrgSupportContact(@Req() req: any, @Param('orgId') orgId: string, @Body() body: { supportContactEmail?: string | null }) {
+    this.assertAdmin(req);
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: { supportContactEmail: body.supportContactEmail || null },
+      include: { organizationType: true }
+    });
+  }
+
   @Get('batches')
   listBatches(@Req() req: any) {
     this.assertAdmin(req);
