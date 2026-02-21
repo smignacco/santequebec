@@ -92,4 +92,93 @@ export class OrgController {
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_RESUME_VALIDATION', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
     return file;
   }
+
+  @Post('confirm-serial-list')
+  async confirmSerialList(@Req() req: any, @Body() body: { serials?: string[] }) {
+    this.assertOrg(req);
+
+    const inv = await this.prisma.inventoryFile.findFirstOrThrow({
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED', 'CONFIRMED'] }, isLocked: false },
+      orderBy: { importedAt: 'desc' }
+    });
+
+    const normalizedSerials = Array.from(new Set((body.serials || [])
+      .map((serial) => (typeof serial === 'string' ? serial.trim() : ''))
+      .filter(Boolean)));
+
+    if (!normalizedSerials.length) {
+      return { processed: 0, matched: 0, created: 0 };
+    }
+
+    const existingItems = await this.prisma.inventoryItem.findMany({
+      where: { inventoryFileId: inv.id },
+      orderBy: { rowNumber: 'asc' }
+    });
+
+    const serialIndex = new Map<string, any>();
+    for (const item of existingItems) {
+      const key = (item.serial || '').trim().toLowerCase();
+      if (key && !serialIndex.has(key)) {
+        serialIndex.set(key, item);
+      }
+    }
+
+    let maxRowNumber = existingItems.reduce((max, item) => Math.max(max, item.rowNumber || 0), 0);
+    const toUpdate: string[] = [];
+    const toCreate: { rowNumber: number; serial: string }[] = [];
+
+    for (const serial of normalizedSerials) {
+      const matchedItem = serialIndex.get(serial.toLowerCase());
+      if (matchedItem) {
+        toUpdate.push(matchedItem.id);
+        continue;
+      }
+      maxRowNumber += 1;
+      toCreate.push({ rowNumber: maxRowNumber, serial });
+    }
+
+    if (toUpdate.length) {
+      await this.prisma.inventoryItem.updateMany({
+        where: { id: { in: toUpdate } },
+        data: { status: 'CONFIRMED' }
+      });
+    }
+
+    for (const item of toCreate) {
+      await this.prisma.inventoryItem.create({
+        data: {
+          inventoryFileId: inv.id,
+          rowNumber: item.rowNumber,
+          serial: item.serial,
+          serialNumber: item.serial,
+          productDescription: 'Ajouté manuellement',
+          notes: 'Ajouté manuellement',
+          status: 'CONFIRMED'
+        }
+      });
+    }
+
+    if (toCreate.length) {
+      await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { rowCount: { increment: toCreate.length } } });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'INVENTORY_FILE',
+        scopeId: inv.id,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'ORG_CONFIRM_SERIAL_LIST',
+        detailsJson: JSON.stringify({
+          processed: normalizedSerials.length,
+          matched: toUpdate.length,
+          created: toCreate.length,
+          ...this.getAuditContext(req)
+        })
+      }
+    });
+
+    return { processed: normalizedSerials.length, matched: toUpdate.length, created: toCreate.length };
+  }
 }
