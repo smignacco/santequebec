@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, TooManyRequestsException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 const hits = new Map<string, { count: number; resetAt: number }>();
 
@@ -13,7 +13,7 @@ export class ThrottleGuard implements CanActivate {
       hits.set(ip, { count: 1, resetAt: now + 60_000 });
       return true;
     }
-    if (rec.count >= 20) throw new TooManyRequestsException();
+    if (rec.count >= 20) throw new HttpException('Too Many Requests', HttpStatus.TOO_MANY_REQUESTS);
     rec.count += 1;
     return true;
   }
