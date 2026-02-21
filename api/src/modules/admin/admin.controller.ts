@@ -27,7 +27,12 @@ export class AdminController {
   @Post('orgs')
   async createOrg(@Req() req: any, @Body() body: { orgCode: string; regionCode: string; displayName: string; typeCode: string; isDrill?: boolean }) {
     this.assertAdmin(req);
-    const type = await this.prisma.organizationType.findUniqueOrThrow({ where: { code: body.typeCode } });
+    const normalizedTypeCode = (body.typeCode || 'CISSS').trim().toUpperCase();
+    const type = await this.prisma.organizationType.upsert({
+      where: { code: normalizedTypeCode },
+      update: {},
+      create: { code: normalizedTypeCode, label: normalizedTypeCode }
+    });
     return this.prisma.organization.create({
       data: {
         orgCode: body.orgCode,
