@@ -304,9 +304,14 @@ export function OrgDashboard() {
           >
             Actualiser
           </button>
-          <button className="button secondary ml-auto" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
+          <button className="button secondary" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
           <button className="button secondary" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked}>Chager .csv</button>
-          <span className="badge badge-centered">{total} actifs</span>
+          <div className="status-badges ml-auto">
+            <span className={`badge badge-centered ${fileStatus === 'CONFIRMED' ? 'badge-success' : 'badge-danger'}`}>
+              {fileStatus === 'CONFIRMED' ? 'Soumis' : 'Non Soumis'}
+            </span>
+            <span className="badge badge-centered">{total} actifs</span>
+          </div>
         </div>
 
         <div className="table-toolbar">
