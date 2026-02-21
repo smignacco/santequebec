@@ -14,6 +14,7 @@ export function AdminDashboard() {
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', pin: '' });
   const [uploadOrgId, setUploadOrgId] = useState('');
@@ -172,6 +173,22 @@ export function AdminDashboard() {
     });
   };
 
+  const moveColumn = (sourceColumn: string, targetColumn: string) => {
+    if (sourceColumn === targetColumn) return;
+
+    setVisibleColumns((current) => {
+      const sourceIndex = current.indexOf(sourceColumn);
+      const targetIndex = current.indexOf(targetColumn);
+      if (sourceIndex === -1 || targetIndex === -1) return current;
+
+      const reordered = [...current];
+      reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, sourceColumn);
+      return reordered;
+    });
+  };
+
+
   return (
     <AppShell>
       <section className="hero">
@@ -288,6 +305,7 @@ export function AdminDashboard() {
 
               <div className="stack">
                 <h4>Colonnes affichées</h4>
+                <p>Activez les colonnes puis cliquez-déplacez les étiquettes ci-dessous pour réordonner l&apos;affichage.</p>
                 <div className="button-row">
                   {inventoryDbColumns.map((column) => (
                     <label key={column} className="link-button" style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
@@ -298,6 +316,26 @@ export function AdminDashboard() {
                       />
                       {column}
                     </label>
+                  ))}
+                </div>
+                <div className="button-row">
+                  {visibleColumns.map((column) => (
+                    <button
+                      key={column}
+                      className="button secondary"
+                      type="button"
+                      draggable
+                      onDragStart={() => setDraggedColumn(column)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => {
+                        if (!draggedColumn) return;
+                        moveColumn(draggedColumn, column);
+                        setDraggedColumn(null);
+                      }}
+                      onDragEnd={() => setDraggedColumn(null)}
+                    >
+                      ↕ {column}
+                    </button>
                   ))}
                 </div>
               </div>
