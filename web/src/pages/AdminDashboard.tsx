@@ -13,6 +13,7 @@ export function AdminDashboard() {
   const [details, setDetails] = useState<any | null>(null);
   const [supportContactDraft, setSupportContactDraft] = useState('');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [inventoryAuditLogs, setInventoryAuditLogs] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
@@ -38,14 +39,19 @@ export function AdminDashboard() {
     setSelectedOrgId(orgId);
     setSelectedFileId('');
     setInventoryItems([]);
+    setInventoryAuditLogs([]);
     setColumnFilter('ALL');
     setVisibleColumns(['rowNumber', 'assetTag', 'serial', 'status']);
   };
 
   const loadInventory = async (fileId: string) => {
-    const items = await api(`/admin/inventory-files/${fileId}/items`);
+    const [items, logs] = await Promise.all([
+      api(`/admin/inventory-files/${fileId}/items`),
+      api(`/admin/inventory-files/${fileId}/audit-logs`)
+    ]);
     setSelectedFileId(fileId);
     setInventoryItems(items);
+    setInventoryAuditLogs(logs);
     setColumnFilter('ALL');
   };
 
@@ -417,6 +423,48 @@ export function AdminDashboard() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="stack">
+                <h4>Journal d'audit de soumission</h4>
+                {!inventoryAuditLogs.length && <p>Aucune soumission enregistrée pour cet inventaire.</p>}
+                {!!inventoryAuditLogs.length && (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Action</th>
+                          <th>Usager</th>
+                          <th>Courriel</th>
+                          <th>Date/heure</th>
+                          <th>Adresse IP</th>
+                          <th>Navigateur</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inventoryAuditLogs.map((log) => {
+                          let details: any = {};
+                          try {
+                            details = JSON.parse(log.detailsJson || '{}');
+                          } catch {
+                            details = {};
+                          }
+
+                          return (
+                            <tr key={log.id}>
+                              <td>{log.action}</td>
+                              <td>{log.actorName || '-'}</td>
+                              <td>{log.actorEmail || '-'}</td>
+                              <td>{new Date(log.createdAt).toLocaleString('fr-CA')}</td>
+                              <td>{details.ipAddress || '-'}</td>
+                              <td>{details.userAgent || '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </section>
           )}

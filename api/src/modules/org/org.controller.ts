@@ -8,6 +8,19 @@ export class OrgController {
   constructor(private prisma: PrismaService) {}
   private assertOrg(req: any) { if (req.user?.role !== 'ORG_USER') throw new UnauthorizedException(); }
 
+  private getAuditContext(req: any) {
+    const forwardedFor = req.headers?.['x-forwarded-for'];
+    const ip = typeof forwardedFor === 'string'
+      ? forwardedFor.split(',')[0].trim()
+      : req.ip || req.socket?.remoteAddress || null;
+
+    return {
+      ipAddress: ip,
+      userAgent: req.headers?.['user-agent'] || null,
+      submittedAt: new Date().toISOString()
+    };
+  }
+
   @Get('me')
   async me(@Req() req: any) {
     this.assertOrg(req);
@@ -64,7 +77,7 @@ export class OrgController {
       orderBy: { importedAt: 'desc' }
     });
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'CONFIRMED' } });
-    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status }) } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
     return file;
   }
 
@@ -76,7 +89,7 @@ export class OrgController {
       orderBy: { importedAt: 'desc' }
     });
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'PUBLISHED' } });
-    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_RESUME_VALIDATION', detailsJson: JSON.stringify({ status: file.status }) } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_RESUME_VALIDATION', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
     return file;
   }
 }
