@@ -85,6 +85,27 @@ model InventoryItem {
   site            String?
   location        String?
   notes           String?
+  instanceNumber  String?
+  serialNumber    String?
+  productId       String?
+  productDescription String?
+  major           String?
+  productType     String?
+  productFamily   String?
+  architecture    String?
+  subArchitecture String?
+  quantity        String?
+  ldos            String?
+  ldosDetailsInMonths String?
+  centreDeSanteRegional String?
+  serviceableFlag String?
+  contractNumber  String?
+  serviceLevel    String?
+  serviceLevelDescription String?
+  serviceStartDate String?
+  serviceEndDate  String?
+  globalServiceList String?
+  excludedAsset   String?
   status          String @default("PENDING")
   updatedAt       DateTime            @updatedAt
   inventoryFile   InventoryFile       @relation(fields: [inventoryFileId], references: [id])
