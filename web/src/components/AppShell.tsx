@@ -20,7 +20,7 @@ export function AppShell({ children, contentClassName }: PropsWithChildren<{ con
             src="https://companieslogo.com/img/orig/CSCO.D-2114e564.png?t=1728111511"
             alt="Cisco logo"
           />
-          <strong>Cisco x Santé Québec</strong>
+          <strong>Santé Québec - Portail de validation de l'inventaire Cisco des établissements.</strong>
         </div>
         <nav className="nav-links">
           {role === 'ORG_USER' && <Link to="/org">Inventaire organisation</Link>}
