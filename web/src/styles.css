@@ -288,12 +288,16 @@ th {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
   border-radius: 999px;
   padding: 0.2rem 0.55rem;
   background: #e9f7fc;
   color: #03516a;
   font-size: 0.8rem;
+}
+
+.badge-centered {
+  align-items: center;
 }
 
 .icon-button {
