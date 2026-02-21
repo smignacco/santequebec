@@ -231,7 +231,7 @@ export class OrgController {
   }
 
   @Post('confirm-serial-list')
-  async confirmSerialList(@Req() req: any, @Body() body: { serials?: string[] }) {
+  async confirmSerialList(@Req() req: any, @Body() body: { rows?: Array<{ serialNumber?: string; productId?: string }> }) {
     this.assertOrg(req);
 
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({
@@ -239,11 +239,18 @@ export class OrgController {
       orderBy: { importedAt: 'desc' }
     });
 
-    const normalizedSerials = Array.from(new Set((body.serials || [])
-      .map((serial) => (typeof serial === 'string' ? serial.trim() : ''))
-      .filter(Boolean)));
+    const normalizedRows = (body.rows || [])
+      .map((row) => ({
+        serialNumber: typeof row?.serialNumber === 'string' ? row.serialNumber.trim() : '',
+        productId: typeof row?.productId === 'string' ? row.productId.trim() : ''
+      }))
+      .filter((row) => Boolean(row.serialNumber));
 
-    if (!normalizedSerials.length) {
+    const dedupedRows = Array.from(new Map(
+      normalizedRows.map((row) => [row.serialNumber.toLowerCase(), row])
+    ).values());
+
+    if (!dedupedRows.length) {
       return { processed: 0, matched: 0, created: 0 };
     }
 
@@ -261,23 +268,26 @@ export class OrgController {
     }
 
     let maxRowNumber = existingItems.reduce((max, item) => Math.max(max, item.rowNumber || 0), 0);
-    const toUpdate: string[] = [];
-    const toCreate: { rowNumber: number; serial: string }[] = [];
+    const matchedRows: { id: string; productId: string }[] = [];
+    const toCreate: { rowNumber: number; serial: string; productId: string | null }[] = [];
 
-    for (const serial of normalizedSerials) {
-      const matchedItem = serialIndex.get(serial.toLowerCase());
+    for (const row of dedupedRows) {
+      const matchedItem = serialIndex.get(row.serialNumber.toLowerCase());
       if (matchedItem) {
-        toUpdate.push(matchedItem.id);
+        matchedRows.push({ id: matchedItem.id, productId: row.productId });
         continue;
       }
       maxRowNumber += 1;
-      toCreate.push({ rowNumber: maxRowNumber, serial });
+      toCreate.push({ rowNumber: maxRowNumber, serial: row.serialNumber, productId: row.productId || null });
     }
 
-    if (toUpdate.length) {
-      await this.prisma.inventoryItem.updateMany({
-        where: { id: { in: toUpdate } },
-        data: { status: 'CONFIRMED' }
+    for (const matched of matchedRows) {
+      await this.prisma.inventoryItem.update({
+        where: { id: matched.id },
+        data: {
+          status: 'CONFIRMED',
+          ...(matched.productId ? { productId: matched.productId } : {})
+        }
       });
     }
 
@@ -288,6 +298,7 @@ export class OrgController {
           rowNumber: item.rowNumber,
           serial: item.serial,
           serialNumber: item.serial,
+          productId: item.productId,
           productDescription: 'Ajouté manuellement',
           notes: 'Ajouté manuellement',
           status: 'CONFIRMED',
@@ -309,14 +320,14 @@ export class OrgController {
         actorEmail: req.user.email,
         action: 'ORG_CONFIRM_SERIAL_LIST',
         detailsJson: JSON.stringify({
-          processed: normalizedSerials.length,
-          matched: toUpdate.length,
+          processed: dedupedRows.length,
+          matched: matchedRows.length,
           created: toCreate.length,
           ...this.getAuditContext(req)
         })
       }
     });
 
-    return { processed: normalizedSerials.length, matched: toUpdate.length, created: toCreate.length };
+    return { processed: dedupedRows.length, matched: matchedRows.length, created: toCreate.length };
   }
 }
