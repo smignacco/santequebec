@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum BatchStatus {
+  DRAFT
+  IN_REVIEW
+  LOCKED
+}
+
+enum InventoryFileStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  APPROVED
+  LOCKED
+}
+
+enum InventoryItemStatus {
+  PENDING
+  CONFIRMED
+  NEEDS_CLARIFICATION
+  UPDATED
+}
+
+enum AuditScope {
+  ORG_ACCESS
+  INVENTORY_ITEM
+  INVENTORY_FILE
+  BATCH
+  ORG
+  ORG_TYPE
+}
+
+enum ActorType {
+  ADMIN
+  ORG_USER
+}
+
+model OrganizationType {
+  id        String         @id @default(cuid())
+  code      String         @unique
+  label     String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  organizations Organization[]
+}
+
+model Organization {
+  id                 String           @id @default(cuid())
+  orgCode            String           @unique
+  regionCode         String
+  displayName        String
+  isDrill            Boolean          @default(false)
+  isActive           Boolean          @default(true)
+  organizationTypeId String
+  organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id])
+  access             OrgAccess[]
+  inventoryFiles     InventoryFile[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model Batch {
+  id        String      @id @default(cuid())
+  name      String
+  status    BatchStatus @default(DRAFT)
+  access    OrgAccess[]
+  inventoryFiles InventoryFile[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OrgAccess {
+  id             String       @id @default(cuid())
+  organizationId String
+  batchId        String
+  pinHash        String
+  isEnabled      Boolean      @default(true)
+  expiresAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  batch          Batch        @relation(fields: [batchId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, batchId])
+}
+
+model InventoryFile {
+  id             String              @id @default(cuid())
+  batchId        String
+  organizationId String
+  sourceFilename String
+  sourceChecksum String
+  importedAt     DateTime            @default(now())
+  rowCount       Int
+  status         InventoryFileStatus @default(NOT_SUBMITTED)
+  batch          Batch               @relation(fields: [batchId], references: [id])
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  items          InventoryItem[]
+}
+
+model InventoryItem {
+  id              String              @id @default(cuid())
+  inventoryFileId String
+  rowNumber       Int
+  assetTag        String?
+  serial          String?
+  model           String?
+  site            String?
+  location        String?
+  notes           String?
+  status          InventoryItemStatus @default(PENDING)
+  updatedAt       DateTime            @updatedAt
+  inventoryFile   InventoryFile       @relation(fields: [inventoryFileId], references: [id])
+}
+
+model AuditLog {
+  id         String     @id @default(cuid())
+  scope      AuditScope
+  scopeId    String
+  actorType  ActorType
+  actorName  String
+  actorEmail String
+  action     String
+  detailsJson String
+  createdAt  DateTime   @default(now())
+}

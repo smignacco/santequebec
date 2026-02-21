@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: santequebec
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: santequebec }
+  template:
+    metadata:
+      labels: { app: santequebec }
+    spec:
+      containers:
+        - name: app
+          image: image-registry.openshift-image-registry.svc:5000/your-project/santequebec:latest
+          ports: [{ containerPort: 8080 }]
+          env:
+            - name: DATABASE_URL
+              value: file:/data/app.db
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: santequebec-secret, key: jwtSecret } }
+            - name: ADMIN_USER
+              valueFrom: { secretKeyRef: { name: santequebec-secret, key: adminUser } }
+            - name: ADMIN_PASS_HASH
+              valueFrom: { secretKeyRef: { name: santequebec-secret, key: adminPassHash } }
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: santequebec-data
