@@ -43,6 +43,12 @@ export function OrgDashboard() {
     await load(page, pageSize);
   };
 
+  const bulkPatch = async (ids: string[], status: string) => {
+    if (isLocked || !ids.length) return;
+    await api('/org/items', { method: 'PATCH', body: JSON.stringify({ ids, status }) });
+    await load(page, pageSize);
+  };
+
   const saveProgress = async () => {
     await load(page, pageSize);
     setMessage('Progression sauvegardée. Vous pouvez reprendre plus tard.');
@@ -268,7 +274,7 @@ export function OrgDashboard() {
           </label>
         </div>
 
-        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} canEdit={!isLocked} />
+        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} canEdit={!isLocked} />
       </section>
 
       {message && (

@@ -14,11 +14,13 @@ const prettify = (column: string) => {
 export function InventoryTable({
   items,
   onPatch,
+  onBulkPatch,
   visibleColumns,
   canEdit = true
 }: {
   items: any[];
   onPatch: (id: string, status: string) => void;
+  onBulkPatch?: (ids: string[], status: string) => void;
   visibleColumns?: string[];
   canEdit?: boolean;
 }) {
@@ -89,6 +91,12 @@ export function InventoryTable({
     });
   };
 
+  const bulkIds = sortedAndFilteredItems.map((item) => item.id).filter(Boolean);
+  const runBulkPatch = (status: string) => {
+    if (!onBulkPatch || !bulkIds.length) return;
+    onBulkPatch(bulkIds, status);
+  };
+
   return (
     <div className="table-wrap">
       <table>
@@ -110,7 +118,16 @@ export function InventoryTable({
                 </div>
               </th>
             ))}
-            <th>Action</th>
+            <th>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span>Action</span>
+                <div className="button-row">
+                  <button className="button success" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('CONFIRMED')}>Confirmer</button>
+                  <button className="button warning" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button danger" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('TO_BE_REMOVED')}>Retirer</button>
+                </div>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
