@@ -16,7 +16,7 @@ export function AdminDashboard() {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
-  const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', pin: '' });
+  const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
   const [uploadOrgId, setUploadOrgId] = useState('');
   const [batchName, setBatchName] = useState('');
   const [xlsx, setXlsx] = useState<File | null>(null);
@@ -57,6 +57,7 @@ export function AdminDashboard() {
         orgCode: orgForm.orgCode,
         regionCode: orgForm.regionCode,
         displayName: orgForm.displayName,
+        supportContactEmail: orgForm.supportContactEmail || null,
         typeCode: 'CISSS',
         isDrill: false
       })
@@ -74,7 +75,7 @@ export function AdminDashboard() {
       body: JSON.stringify({ pin: orgForm.pin })
     });
 
-    setOrgForm({ orgCode: '', regionCode: '', displayName: '', pin: '' });
+    setOrgForm({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
     setView('LIST');
     setMessage('Organisation créée avec succès. Vous pouvez maintenant téléverser son inventaire depuis la liste.');
     await loadOrgs();
@@ -234,6 +235,7 @@ export function AdminDashboard() {
             <input className="input" placeholder="Code Organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} required />
             <input className="input" placeholder="Code Region" value={orgForm.regionCode} onChange={(e) => setOrgForm({ ...orgForm, regionCode: e.target.value })} required />
             <input className="input" placeholder="Nom affiché" value={orgForm.displayName} onChange={(e) => setOrgForm({ ...orgForm, displayName: e.target.value })} required />
+            <input className="input" type="email" placeholder="Courriel contact support (MS Teams)" value={orgForm.supportContactEmail} onChange={(e) => setOrgForm({ ...orgForm, supportContactEmail: e.target.value })} required />
             <input className="input" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
@@ -286,6 +288,7 @@ export function AdminDashboard() {
             <section className="panel stack">
               <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
               <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
+              <p>Contact support Teams: {details.org.supportContactEmail || 'Non configuré'}</p>
               <h4>Inventaires chargés</h4>
               <div className="table-wrap">
                 <table>

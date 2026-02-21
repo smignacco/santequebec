@@ -9,7 +9,7 @@ type SqliteTableColumn = {
 export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly requiredSchema: Record<string, string[]> = {
     OrganizationType: ['id', 'code', 'label', 'createdAt', 'updatedAt'],
-    Organization: ['id', 'orgCode', 'regionCode', 'displayName', 'isDrill', 'isActive', 'organizationTypeId', 'createdAt', 'updatedAt'],
+    Organization: ['id', 'orgCode', 'regionCode', 'displayName', 'supportContactEmail', 'isDrill', 'isActive', 'organizationTypeId', 'createdAt', 'updatedAt'],
     Batch: ['id', 'name', 'status', 'createdAt', 'updatedAt'],
     OrgAccess: ['id', 'organizationId', 'batchId', 'pinHash', 'isEnabled', 'expiresAt', 'createdAt', 'updatedAt'],
     InventoryFile: ['id', 'batchId', 'organizationId', 'sourceFilename', 'sourceChecksum', 'importedAt', 'rowCount', 'publishedColumns', 'status', 'isLocked'],
