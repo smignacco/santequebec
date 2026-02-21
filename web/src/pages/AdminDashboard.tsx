@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
 
 export function AdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
@@ -22,14 +22,21 @@ export function AdminDashboard() {
   const [uploadOrgId, setUploadOrgId] = useState('');
   const [batchName, setBatchName] = useState('');
   const [xlsx, setXlsx] = useState<File | null>(null);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
     setOrgs(orgData);
   };
 
+  const loadAdminUsers = async () => {
+    const data = await api('/admin/admin-users');
+    setAdminUsers(data);
+  };
+
   useEffect(() => {
-    loadOrgs().catch(() => setMessage('Impossible de charger la liste des organisations.'));
+    Promise.all([loadOrgs(), loadAdminUsers()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
 
   const loadOrgDetails = async (orgId: string) => {
@@ -53,6 +60,25 @@ export function AdminDashboard() {
     setInventoryItems(items);
     setInventoryAuditLogs(logs);
     setColumnFilter('ALL');
+  };
+
+  const createAdminUser = async (e: FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+
+    await api('/admin/admin-users', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: adminForm.username.trim(),
+        email: adminForm.email.trim(),
+        displayName: adminForm.displayName.trim(),
+        password: adminForm.password
+      })
+    });
+
+    setAdminForm({ username: '', email: '', displayName: '', password: '' });
+    setMessage('Administrateur ajouté avec succès.');
+    await loadAdminUsers();
   };
 
   const createOrg = async (e: FormEvent) => {
@@ -245,6 +271,9 @@ export function AdminDashboard() {
           <button className={`button ${view === 'CREATE' ? '' : 'secondary'}`} type="button" onClick={() => setView('CREATE')}>
             Créer
           </button>
+          <button className={`button ${view === 'ADMINS' ? '' : 'secondary'}`} type="button" onClick={() => setView('ADMINS')}>
+            Administrateurs
+          </button>
         </div>
       </section>
 
@@ -259,6 +288,46 @@ export function AdminDashboard() {
             <input className="input" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
+        </section>
+      ) : view === 'ADMINS' ? (
+        <section className="panel stack">
+          <h3>Gestion des administrateurs</h3>
+          <p>Ajoutez des comptes administrateurs qui pourront se connecter au portail d&apos;administration.</p>
+
+          <section className="panel stack">
+            <h4>Ajouter un administrateur</h4>
+            <form className="stack" onSubmit={createAdminUser}>
+              <input className="input" placeholder="Nom d&apos;utilisateur" value={adminForm.username} onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })} required />
+              <input className="input" type="email" placeholder="Courriel" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })} required />
+              <input className="input" placeholder="Nom affiché" value={adminForm.displayName} onChange={(e) => setAdminForm({ ...adminForm, displayName: e.target.value })} required />
+              <input className="input" type="password" minLength={8} placeholder="Mot de passe (8 caractères minimum)" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required />
+              <button className="button" type="submit">Créer l&apos;administrateur</button>
+            </form>
+          </section>
+
+          <h4>Administrateurs existants</h4>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom d&apos;utilisateur</th>
+                  <th>Nom affiché</th>
+                  <th>Courriel</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminUsers.map((admin) => (
+                  <tr key={admin.id}>
+                    <td>{admin.username}</td>
+                    <td>{admin.displayName}</td>
+                    <td>{admin.email}</td>
+                    <td>{admin.isActive ? 'Actif' : 'Inactif'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : (
         <section className="panel stack">
