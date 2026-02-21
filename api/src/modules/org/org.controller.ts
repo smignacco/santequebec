@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { ActorType, AuditScope, InventoryFileStatus, InventoryItemStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -16,7 +15,7 @@ export class OrgController {
   }
 
   @Get('items')
-  async items(@Req() req: any, @Query('status') status?: InventoryItemStatus, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+  async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
     this.assertOrg(req);
     const p = Number(page), ps = Number(pageSize);
     const file = await this.prisma.inventoryFile.findFirst({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId } });
@@ -30,11 +29,11 @@ export class OrgController {
   }
 
   @Patch('items/:id')
-  async updateItem(@Req() req: any, @Param('id') id: string, @Body() body: { status?: InventoryItemStatus; notes?: string }) {
+  async updateItem(@Req() req: any, @Param('id') id: string, @Body() body: { status?: string; notes?: string }) {
     this.assertOrg(req);
     const oldItem = await this.prisma.inventoryItem.findUniqueOrThrow({ where: { id } });
     const item = await this.prisma.inventoryItem.update({ where: { id }, data: { status: body.status, notes: body.notes } });
-    await this.prisma.auditLog.create({ data: { scope: AuditScope.INVENTORY_ITEM, scopeId: id, actorType: ActorType.ORG_USER, actorName: req.user.name, actorEmail: req.user.email, action: 'ITEM_STATUS_CHANGED', detailsJson: JSON.stringify({ old: oldItem, new: item }) } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_ITEM', scopeId: id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ITEM_STATUS_CHANGED', detailsJson: JSON.stringify({ old: oldItem, new: item }) } });
     return item;
   }
 
@@ -42,8 +41,8 @@ export class OrgController {
   async submit(@Req() req: any) {
     this.assertOrg(req);
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId } });
-    const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: InventoryFileStatus.SUBMITTED } });
-    await this.prisma.auditLog.create({ data: { scope: AuditScope.INVENTORY_FILE, scopeId: file.id, actorType: ActorType.ORG_USER, actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status }) } });
+    const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'SUBMITTED' } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status }) } });
     return file;
   }
 }

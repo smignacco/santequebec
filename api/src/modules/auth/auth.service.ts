@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ActorType, AuditScope } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../common/prisma.service';
 
@@ -20,7 +19,7 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name: input.name, email: input.email });
-    await this.prisma.auditLog.create({ data: { scope: AuditScope.ORG_ACCESS, scopeId: access.id, actorType: ActorType.ORG_USER, actorName: input.name, actorEmail: input.email, action: 'ORG_LOGIN', detailsJson: JSON.stringify({ orgCode: input.orgCode }) } });
+    await this.prisma.auditLog.create({ data: { scope: 'ORG_ACCESS', scopeId: access.id, actorType: 'ORG_USER', actorName: input.name, actorEmail: input.email, action: 'ORG_LOGIN', detailsJson: JSON.stringify({ orgCode: input.orgCode }) } });
     return { token };
   }
 

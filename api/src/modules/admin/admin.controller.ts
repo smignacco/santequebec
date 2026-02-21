@@ -1,6 +1,5 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { BatchStatus, InventoryFileStatus, InventoryItemStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomInt } from 'crypto';
 import * as XLSX from 'xlsx';
@@ -25,7 +24,7 @@ export class AdminController {
   listOrgs(@Req() req: any) { this.assertAdmin(req); return this.prisma.organization.findMany({ include: { organizationType: true } }); }
 
   @Post('batches')
-  createBatch(@Req() req: any, @Body() body: { name: string }) { this.assertAdmin(req); return this.prisma.batch.create({ data: { name: body.name, status: BatchStatus.DRAFT } }); }
+  createBatch(@Req() req: any, @Body() body: { name: string }) { this.assertAdmin(req); return this.prisma.batch.create({ data: { name: body.name, status: 'DRAFT' } }); }
 
   @Post('batches/:batchId/orgs/:orgId/access-pin')
   async resetPin(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string) {
@@ -43,7 +42,7 @@ export class AdminController {
     const wb = XLSX.read(file.buffer, { type: 'buffer' });
     const rows = XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
-    const inv = await this.prisma.inventoryFile.create({ data: { batchId, organizationId: orgId, sourceFilename: file.originalname, sourceChecksum: checksum, rowCount: rows.length, status: InventoryFileStatus.NOT_SUBMITTED } });
+    const inv = await this.prisma.inventoryFile.create({ data: { batchId, organizationId: orgId, sourceFilename: file.originalname, sourceChecksum: checksum, rowCount: rows.length, status: 'NOT_SUBMITTED' } });
     const norm = (k: string) => k.toLowerCase().replace(/\s+/g, '');
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -51,7 +50,7 @@ export class AdminController {
         const key = Object.keys(row).find((k) => aliases.includes(norm(k)));
         return key ? String(row[key] ?? '') : null;
       };
-      await this.prisma.inventoryItem.create({ data: { inventoryFileId: inv.id, rowNumber: i + 1, assetTag: pick(['assettag', 'tagactif']), serial: pick(['serial', 'numeroserie']), model: pick(['model', 'modele']), site: pick(['site']), location: pick(['location', 'emplacement']), notes: pick(['notes', 'note']), status: InventoryItemStatus.PENDING } });
+      await this.prisma.inventoryItem.create({ data: { inventoryFileId: inv.id, rowNumber: i + 1, assetTag: pick(['assettag', 'tagactif']), serial: pick(['serial', 'numeroserie']), model: pick(['model', 'modele']), site: pick(['site']), location: pick(['location', 'emplacement']), notes: pick(['notes', 'note']), status: 'PENDING' } });
     }
     return { inventoryFileId: inv.id, rowCount: rows.length };
   }
