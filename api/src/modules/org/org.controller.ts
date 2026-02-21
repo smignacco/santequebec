@@ -18,7 +18,7 @@ export class OrgController {
   async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
     this.assertOrg(req);
     const p = Number(page), ps = Number(pageSize);
-    const file = await this.prisma.inventoryFile.findFirst({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId } });
+    const file = await this.prisma.inventoryFile.findFirst({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] } } });
     if (!file) return { total: 0, items: [] };
     const where: any = { inventoryFileId: file.id };
     if (status) where.status = status;
