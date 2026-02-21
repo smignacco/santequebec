@@ -4,6 +4,7 @@ import { AppShell } from '../components/AppShell';
 import { InventoryTable } from './InventoryTable';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200];
+const ALL_PAGE_SIZE = -1;
 
 export function OrgDashboard() {
   const [data, setData] = useState<any>({ items: [], total: 0, page: 1, pageSize: 20 });
@@ -18,8 +19,13 @@ export function OrgDashboard() {
   const [serialColumn, setSerialColumn] = useState('');
   const [csvError, setCsvError] = useState('');
 
-  const load = (nextPage = page, nextPageSize = pageSize) =>
-    api(`/org/items?page=${nextPage}&pageSize=${nextPageSize}`).then(setData);
+  const load = (nextPage = page, nextPageSize = pageSize) => {
+    const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
+      ? Math.max(data.total || 0, 1)
+      : nextPageSize;
+
+    return api(`/org/items?page=${nextPage}&pageSize=${resolvedPageSize}`).then(setData);
+  };
 
   useEffect(() => {
     load(page, pageSize);
@@ -73,7 +79,8 @@ export function OrgDashboard() {
   const canSubmit = fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED';
   const canResume = fileStatus === 'CONFIRMED' && !isLocked;
   const completion = total ? Math.round((confirmed / total) * 100) : 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePageSize = pageSize === ALL_PAGE_SIZE ? Math.max(total, 1) : pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / effectivePageSize));
 
   const goToPage = (nextPage: number) => {
     const boundedPage = Math.min(totalPages, Math.max(1, nextPage));
@@ -269,6 +276,7 @@ export function OrgDashboard() {
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>{size}</option>
               ))}
+              <option value={ALL_PAGE_SIZE}>Tous</option>
             </select>
             résultats par page
           </label>
