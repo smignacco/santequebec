@@ -54,7 +54,7 @@ export class AdminController {
   }
 
   @Patch('inventory-files/:fileId/publish')
-  async publishInventory(@Req() req: any, @Param('fileId') fileId: string) {
+  async publishInventory(@Req() req: any, @Param('fileId') fileId: string, @Body() body: { visibleColumns?: string[] }) {
     this.assertAdmin(req);
     const file = await this.prisma.inventoryFile.findUniqueOrThrow({ where: { id: fileId } });
     const existingPublished = await this.prisma.inventoryFile.findFirst({
@@ -67,7 +67,14 @@ export class AdminController {
     if (existingPublished) {
       throw new ConflictException('Une seule liste d\'inventaire peut être publiée à la fois pour cette organisation.');
     }
-    return this.prisma.inventoryFile.update({ where: { id: fileId }, data: { status: 'PUBLISHED' } });
+    const uniqueColumns = Array.from(new Set((body?.visibleColumns || []).filter((column) => typeof column === 'string' && column.trim().length > 0)));
+    return this.prisma.inventoryFile.update({
+      where: { id: fileId },
+      data: {
+        status: 'PUBLISHED',
+        publishedColumns: uniqueColumns.length ? JSON.stringify(uniqueColumns) : null
+      }
+    });
   }
 
   @Delete('inventory-items/:itemId')
