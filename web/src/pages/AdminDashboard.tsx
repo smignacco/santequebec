@@ -12,6 +12,7 @@ export function AdminDashboard() {
   const [selectedFileId, setSelectedFileId] = useState('');
   const [details, setDetails] = useState<any | null>(null);
   const [supportContactDraft, setSupportContactDraft] = useState('');
+  const [pinDraft, setPinDraft] = useState('');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [inventoryAuditLogs, setInventoryAuditLogs] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
@@ -43,6 +44,7 @@ export function AdminDashboard() {
     const data = await api(`/admin/orgs/${orgId}/details`);
     setDetails(data);
     setSupportContactDraft(data.org?.supportContactEmail || '');
+    setPinDraft('');
     setSelectedOrgId(orgId);
     setSelectedFileId('');
     setInventoryItems([]);
@@ -193,6 +195,21 @@ export function AdminDashboard() {
     await loadOrgDetails(selectedOrgId);
   };
 
+  const updateOrgPin = async () => {
+    if (!selectedOrgId) return;
+    if (pinDraft.trim().length < 4) {
+      setMessage('Le NIP doit contenir au moins 4 caractères.');
+      return;
+    }
+
+    await api(`/admin/orgs/${selectedOrgId}/access-pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pin: pinDraft.trim() })
+    });
+    setPinDraft('');
+    setMessage("NIP de l'organisation mis à jour.");
+  };
+
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
 
   const inventoryDbColumns = useMemo(() => {
@@ -285,7 +302,7 @@ export function AdminDashboard() {
             <input className="input" placeholder="Code Region" value={orgForm.regionCode} onChange={(e) => setOrgForm({ ...orgForm, regionCode: e.target.value })} required />
             <input className="input" placeholder="Nom affiché" value={orgForm.displayName} onChange={(e) => setOrgForm({ ...orgForm, displayName: e.target.value })} required />
             <input className="input" type="email" placeholder="Courriel contact support (MS Teams)" value={orgForm.supportContactEmail} onChange={(e) => setOrgForm({ ...orgForm, supportContactEmail: e.target.value })} required />
-            <input className="input" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
+            <input className="input" type="password" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
         </section>
@@ -391,6 +408,21 @@ export function AdminDashboard() {
                   <button className="button" type="button" onClick={updateSupportContact}>Enregistrer</button>
                 </div>
                 <p>Valeur actuelle: {details.org.supportContactEmail || 'Non configuré'}</p>
+              </div>
+              <div className="stack">
+                <label htmlFor="orgAccessPin"><strong>NIP de l&apos;organisation</strong></label>
+                <div className="button-row">
+                  <input
+                    id="orgAccessPin"
+                    className="input"
+                    type="password"
+                    placeholder="Nouveau NIP"
+                    value={pinDraft}
+                    onChange={(e) => setPinDraft(e.target.value)}
+                  />
+                  <button className="button" type="button" onClick={updateOrgPin}>Modifier le NIP</button>
+                </div>
+                <p>Le NIP n&apos;est jamais affiché pour des raisons de sécurité.</p>
               </div>
               <h4>Inventaires chargés</h4>
               <div className="table-wrap">

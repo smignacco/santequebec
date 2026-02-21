@@ -179,6 +179,27 @@ export class AdminController {
     });
   }
 
+  @Patch('orgs/:orgId/access-pin')
+  async updateOrgPin(@Req() req: any, @Param('orgId') orgId: string, @Body() body: { pin: string }) {
+    this.assertAdmin(req);
+    const pin = (body?.pin || '').trim();
+    if (pin.length < 4) {
+      throw new ConflictException('Le NIP doit contenir au moins 4 caractères.');
+    }
+
+    const pinHash = await argon2.hash(pin);
+    const result = await this.prisma.orgAccess.updateMany({
+      where: { organizationId: orgId },
+      data: { pinHash, isEnabled: true }
+    });
+
+    if (result.count === 0) {
+      throw new ConflictException('Aucun accès actif trouvé pour cette organisation. Veuillez publier un inventaire avant de modifier le NIP.');
+    }
+
+    return { ok: true };
+  }
+
   @Get('batches')
   listBatches(@Req() req: any) {
     this.assertAdmin(req);
