@@ -9,6 +9,7 @@ export function OrgDashboard() {
   const [data, setData] = useState<any>({ items: [], total: 0, page: 1, pageSize: 20 });
   const [message, setMessage] = useState('');
   const [orgName, setOrgName] = useState('Organisation');
+  const [supportContactEmail, setSupportContactEmail] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -21,8 +22,14 @@ export function OrgDashboard() {
 
   useEffect(() => {
     api('/org/me')
-      .then((org) => setOrgName(org?.displayName || 'Organisation'))
-      .catch(() => setOrgName('Organisation'));
+      .then((org) => {
+        setOrgName(org?.displayName || 'Organisation');
+        setSupportContactEmail(org?.supportContactEmail || '');
+      })
+      .catch(() => {
+        setOrgName('Organisation');
+        setSupportContactEmail('');
+      });
   }, []);
 
   const patch = async (id: string, status: string) => {
@@ -51,6 +58,10 @@ export function OrgDashboard() {
     setPage(boundedPage);
   };
 
+  const teamsHelpLink = supportContactEmail
+    ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(supportContactEmail)}`
+    : '';
+
   const onPageSizeChange = (value: number) => {
     setPageSize(value);
     setPage(1);
@@ -59,8 +70,35 @@ export function OrgDashboard() {
   return (
     <AppShell contentClassName="main-content-wide">
       <section className="hero">
-        <h1>Tableau de bord - {orgName}</h1>
-        <p>Inventaire à valider item par item.</p>
+        <div className="hero-header">
+          <div>
+            <h1>Tableau de bord - {orgName}</h1>
+            <p>Inventaire à valider item par item.</p>
+          </div>
+          <a
+            className={`button secondary teams-help-button ${teamsHelpLink ? '' : 'is-disabled'}`}
+            href={teamsHelpLink || undefined}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!teamsHelpLink}
+            onClick={(event) => {
+              if (!teamsHelpLink) {
+                event.preventDefault();
+              }
+            }}
+            title={teamsHelpLink ? 'Ouvrir le chat Microsoft Teams' : 'Aucun contact support Teams configuré'}
+          >
+            <span aria-hidden="true" className="teams-logo">
+              <svg viewBox="0 0 24 24" width="16" height="16" role="img">
+                <rect x="1" y="4" width="14" height="16" rx="3" fill="#5b5fc7" />
+                <circle cx="18" cy="8" r="3" fill="#7b83eb" />
+                <rect x="15" y="11" width="8" height="8" rx="3" fill="#4f52b2" />
+                <path d="M5 8h7v2H9.8v6H7.2v-6H5z" fill="white" />
+              </svg>
+            </span>
+            Besoin d'aide
+          </a>
+        </div>
       </section>
 
       <section className="panel stack">
