@@ -75,3 +75,8 @@ oc apply -f openshift/
 - Import Excel via `/api/admin/batches/:batchId/orgs/:orgId/import-excel` (multipart `file`).
 - Export Excel via `/api/admin/batches/:batchId/orgs/:orgId/export-excel`.
 - Export PDF: stub 501.
+
+## Compte admin initial
+- Identifiant par défaut: `admin`
+- Mot de passe par défaut: `Admin123!`
+- Vous pouvez ajouter un compte admin via `ADMIN_USER` et `ADMIN_PASS_HASH` (le compte par défaut reste disponible pour le premier accès).
