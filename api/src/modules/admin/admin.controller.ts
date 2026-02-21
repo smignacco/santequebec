@@ -59,13 +59,13 @@ export class AdminController {
   async dashboard(@Req() req: any, @Query('batchId') batchId: string) {
     this.assertAdmin(req);
     const files = await this.prisma.inventoryFile.findMany({ where: { batchId }, include: { organization: true, items: true } });
-    return files.map((f) => ({
+    return files.map((f: any) => ({
       org: f.organization.displayName,
       orgCode: f.organization.orgCode,
       total: f.items.length,
-      confirmed: f.items.filter((i) => i.status === 'CONFIRMED').length,
-      pending: f.items.filter((i) => i.status === 'PENDING').length,
-      needs_clarification: f.items.filter((i) => i.status === 'NEEDS_CLARIFICATION').length,
+      confirmed: f.items.filter((i: any) => i.status === 'CONFIRMED').length,
+      pending: f.items.filter((i: any) => i.status === 'PENDING').length,
+      needs_clarification: f.items.filter((i: any) => i.status === 'NEEDS_CLARIFICATION').length,
       status: f.status
     }));
   }
@@ -74,7 +74,7 @@ export class AdminController {
   async exportExcel(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string) {
     this.assertAdmin(req);
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({ where: { batchId, organizationId: orgId }, include: { items: true } });
-    const data = inv.items.map((i) => ({ assetTag: i.assetTag, serial: i.serial, model: i.model, site: i.site, location: i.location, notes: i.notes, status: i.status }));
+    const data = inv.items.map((i: any) => ({ assetTag: i.assetTag, serial: i.serial, model: i.model, site: i.site, location: i.location, notes: i.notes, status: i.status }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventaire');
