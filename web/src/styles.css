@@ -49,25 +49,12 @@ a {
   gap: 0.75rem;
 }
 
-.brand-mark {
-  display: inline-flex;
-  gap: 0.2rem;
-  align-items: flex-end;
+.brand-logo {
+  display: block;
+  height: 32px;
+  width: auto;
+  object-fit: contain;
 }
-
-.brand-mark span {
-  width: 4px;
-  background: var(--cisco-blue-500);
-  border-radius: 4px;
-}
-
-.brand-mark span:nth-child(1) { height: 12px; }
-.brand-mark span:nth-child(2) { height: 18px; }
-.brand-mark span:nth-child(3) { height: 24px; }
-.brand-mark span:nth-child(4) { height: 32px; }
-.brand-mark span:nth-child(5) { height: 24px; }
-.brand-mark span:nth-child(6) { height: 18px; }
-.brand-mark span:nth-child(7) { height: 12px; }
 
 .brand strong {
   font-size: 1.1rem;
