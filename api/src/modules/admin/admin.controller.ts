@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, ConflictException, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as argon2 from 'argon2';
 import { createHash, randomInt } from 'crypto';
@@ -56,6 +56,17 @@ export class AdminController {
   @Patch('inventory-files/:fileId/publish')
   async publishInventory(@Req() req: any, @Param('fileId') fileId: string) {
     this.assertAdmin(req);
+    const file = await this.prisma.inventoryFile.findUniqueOrThrow({ where: { id: fileId } });
+    const existingPublished = await this.prisma.inventoryFile.findFirst({
+      where: {
+        organizationId: file.organizationId,
+        status: 'PUBLISHED',
+        id: { not: fileId }
+      }
+    });
+    if (existingPublished) {
+      throw new ConflictException('Une seule liste d\'inventaire peut être publiée à la fois pour cette organisation.');
+    }
     return this.prisma.inventoryFile.update({ where: { id: fileId }, data: { status: 'PUBLISHED' } });
   }
 

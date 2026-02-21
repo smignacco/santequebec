@@ -18,7 +18,10 @@ export class OrgController {
   async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
     this.assertOrg(req);
     const p = Number(page), ps = Number(pageSize);
-    const file = await this.prisma.inventoryFile.findFirst({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] } } });
+    const file = await this.prisma.inventoryFile.findFirst({
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] } },
+      orderBy: { importedAt: 'desc' }
+    });
     if (!file) return { total: 0, items: [] };
     const where: any = { inventoryFileId: file.id };
     if (status) where.status = status;
@@ -40,7 +43,10 @@ export class OrgController {
   @Post('submit')
   async submit(@Req() req: any) {
     this.assertOrg(req);
-    const inv = await this.prisma.inventoryFile.findFirstOrThrow({ where: { batchId: req.user.batchId, organizationId: req.user.organizationId } });
+    const inv = await this.prisma.inventoryFile.findFirstOrThrow({
+      where: { organizationId: req.user.organizationId, status: 'PUBLISHED' },
+      orderBy: { importedAt: 'desc' }
+    });
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'SUBMITTED' } });
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status }) } });
     return file;
