@@ -51,9 +51,9 @@ export class AdminController {
   createBatch(@Req() req: any, @Body() body: { name: string }) { this.assertAdmin(req); return this.prisma.batch.create({ data: { name: body.name, status: 'DRAFT' } }); }
 
   @Post('batches/:batchId/orgs/:orgId/access-pin')
-  async resetPin(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string) {
+  async resetPin(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string, @Body() body?: { pin?: string }) {
     this.assertAdmin(req);
-    const pin = String(randomInt(100000, 999999));
+    const pin = (body?.pin || '').trim() || String(randomInt(100000, 999999));
     const pinHash = await argon2.hash(pin);
     await this.prisma.orgAccess.upsert({ where: { organizationId_batchId: { organizationId: orgId, batchId } }, update: { pinHash, isEnabled: true }, create: { organizationId: orgId, batchId, pinHash } });
     return { pin };
