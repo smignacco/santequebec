@@ -17,6 +17,9 @@ WORKDIR /opt/app
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV DATABASE_URL=file:/data/app.db
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=api-build /opt/app/api/package.json /opt/app/api/package.json
 COPY --from=api-build /opt/app/api/node_modules /opt/app/api/node_modules
 COPY --from=api-build /opt/app/api/dist /opt/app/api/dist
