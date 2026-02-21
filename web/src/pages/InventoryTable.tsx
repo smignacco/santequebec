@@ -124,6 +124,7 @@ export function InventoryTable({
                 <div className="button-row">
                   <button className="button success" disabled={!canEdit} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
                   <button className="button warning" disabled={!canEdit} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button danger" disabled={!canEdit} onClick={() => onPatch(item.id, 'À retirer')}>Retirer</button>
                 </div>
               </td>
             </tr>
