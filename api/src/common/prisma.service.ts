@@ -12,7 +12,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     Organization: ['id', 'orgCode', 'regionCode', 'displayName', 'isDrill', 'isActive', 'organizationTypeId', 'createdAt', 'updatedAt'],
     Batch: ['id', 'name', 'status', 'createdAt', 'updatedAt'],
     OrgAccess: ['id', 'organizationId', 'batchId', 'pinHash', 'isEnabled', 'expiresAt', 'createdAt', 'updatedAt'],
-    InventoryFile: ['id', 'batchId', 'organizationId', 'sourceFilename', 'sourceChecksum', 'importedAt', 'rowCount', 'status'],
+    InventoryFile: ['id', 'batchId', 'organizationId', 'sourceFilename', 'sourceChecksum', 'importedAt', 'rowCount', 'publishedColumns', 'status'],
     InventoryItem: ['id', 'inventoryFileId', 'rowNumber', 'assetTag', 'serial', 'model', 'site', 'location', 'notes', 'status', 'updatedAt'],
     AuditLog: ['id', 'scope', 'scopeId', 'actorType', 'actorName', 'actorEmail', 'action', 'detailsJson', 'createdAt']
   };

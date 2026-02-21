@@ -1,13 +1,44 @@
 import { useMemo, useState } from 'react';
 
-const sortableColumns = [
-  { key: 'assetTag', label: 'Asset' },
-  { key: 'serial', label: 'Serial' },
-  { key: 'status', label: 'Status' }
-] as const;
+const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt']);
 
-export function InventoryTable({ items, onPatch }: { items: any[]; onPatch: (id: string, status: string) => void }) {
+const prettify = (column: string) => {
+  if (!column) return '';
+  return column
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/^./, (char) => char.toUpperCase());
+};
+
+export function InventoryTable({
+  items,
+  onPatch,
+  visibleColumns
+}: {
+  items: any[];
+  onPatch: (id: string, status: string) => void;
+  visibleColumns?: string[];
+}) {
   const [activeFilter, setActiveFilter] = useState<string>('');
+
+  const tableColumns = useMemo(() => {
+    if (visibleColumns?.length) {
+      return visibleColumns.filter((column) => !technicalColumns.has(column));
+    }
+
+    if (!items.length) return ['rowNumber', 'assetTag', 'serial', 'status'];
+
+    const columns = new Set<string>();
+    items.forEach((item) => {
+      Object.keys(item).forEach((key) => {
+        if (!technicalColumns.has(key)) {
+          columns.add(key);
+        }
+      });
+    });
+
+    return Array.from(columns);
+  }, [items, visibleColumns]);
 
   const filtered = useMemo(() => {
     if (!activeFilter) return items;
@@ -24,12 +55,11 @@ export function InventoryTable({ items, onPatch }: { items: any[]; onPatch: (id:
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            {sortableColumns.map((column) => (
-              <th key={column.key}>
-                <button className="header-filter" type="button" onClick={() => toggleFilter(column.key)}>
-                  {column.label}
-                  {column.key === 'status' && activeFilter ? ` (${activeFilter})` : ''}
+            {tableColumns.map((column) => (
+              <th key={column}>
+                <button className="header-filter" type="button" onClick={() => toggleFilter(column)}>
+                  {prettify(column)}
+                  {column === 'status' && activeFilter ? ` (${activeFilter})` : ''}
                 </button>
               </th>
             ))}
@@ -37,16 +67,17 @@ export function InventoryTable({ items, onPatch }: { items: any[]; onPatch: (id:
           </tr>
         </thead>
         <tbody>
-          {filtered.map((i) => (
-            <tr key={i.id}>
-              <td>{i.rowNumber}</td>
-              <td>{i.assetTag}</td>
-              <td>{i.serial}</td>
-              <td><span className="badge">{i.status}</span></td>
+          {filtered.map((item) => (
+            <tr key={item.id}>
+              {tableColumns.map((column) => (
+                <td key={`${item.id}-${column}`}>
+                  {column === 'status' ? <span className="badge">{item[column] || '-'}</span> : item[column] ?? '-'}
+                </td>
+              ))}
               <td>
                 <div className="button-row">
-                  <button className="button success" onClick={() => onPatch(i.id, 'CONFIRMED')}>Confirmer</button>
-                  <button className="button warning" onClick={() => onPatch(i.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button success" onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
+                  <button className="button warning" onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
                 </div>
               </td>
             </tr>

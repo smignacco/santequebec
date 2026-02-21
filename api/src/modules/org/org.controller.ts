@@ -22,13 +22,26 @@ export class OrgController {
       where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] } },
       orderBy: { importedAt: 'desc' }
     });
-    if (!file) return { total: 0, items: [] };
+    if (!file) return { total: 0, items: [], visibleColumns: [] };
     const where: any = { inventoryFileId: file.id };
     if (status) where.status = status;
     if (q) where.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
     const total = await this.prisma.inventoryItem.count({ where });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
-    return { total, page: p, pageSize: ps, items };
+
+    let visibleColumns: string[] = [];
+    if (file.publishedColumns) {
+      try {
+        const parsed = JSON.parse(file.publishedColumns);
+        if (Array.isArray(parsed)) {
+          visibleColumns = parsed.filter((column) => typeof column === 'string' && column.trim().length > 0);
+        }
+      } catch {
+        visibleColumns = [];
+      }
+    }
+
+    return { total, page: p, pageSize: ps, items, visibleColumns };
   }
 
   @Patch('items/:id')

@@ -117,7 +117,10 @@ export function AdminDashboard() {
 
   const publishInventory = async () => {
     if (!selectedFileId) return;
-    await api(`/admin/inventory-files/${selectedFileId}/publish`, { method: 'PATCH' });
+    await api(`/admin/inventory-files/${selectedFileId}/publish`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibleColumns })
+    });
     setMessage('Inventaire publié pour validation par l\'organisation.');
     if (selectedOrgId) await loadOrgDetails(selectedOrgId);
   };

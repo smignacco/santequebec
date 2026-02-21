@@ -56,7 +56,7 @@ export function OrgDashboard() {
           <span className="badge">{total} actifs</span>
         </div>
 
-        <InventoryTable items={data.items || []} onPatch={patch} />
+        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} />
       </section>
 
       {message && (
