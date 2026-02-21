@@ -6,11 +6,11 @@ export function AppShell({ children }: PropsWithChildren) {
     <div className="page-shell">
       <header className="top-nav">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            {Array.from({ length: 7 }).map((_, index) => (
-              <span key={index} />
-            ))}
-          </span>
+          <img
+            className="brand-logo"
+            src="https://companieslogo.com/img/orig/CSCO.D-2114e564.png?t=1728111511"
+            alt="Cisco logo"
+          />
           <strong>Cisco x Santé Québec</strong>
         </div>
         <nav className="nav-links">
