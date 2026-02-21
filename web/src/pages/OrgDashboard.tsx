@@ -17,6 +17,7 @@ export function OrgDashboard() {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [serialColumn, setSerialColumn] = useState('');
+  const [productIdColumn, setProductIdColumn] = useState('');
   const [csvError, setCsvError] = useState('');
 
   const load = (nextPage = page, nextPageSize = pageSize) => {
@@ -151,6 +152,7 @@ export function OrgDashboard() {
       setCsvHeaders([]);
       setCsvRows([]);
       setSerialColumn('');
+      setProductIdColumn('');
       return;
     }
 
@@ -166,7 +168,9 @@ export function OrgDashboard() {
     setCsvHeaders(headers);
     setCsvRows(rows);
     const foundSerialColumn = headers.find((header) => /serial|série|serie/i.test(header));
+    const foundProductIdColumn = headers.find((header) => /product.?id|produit.?id|sku/i.test(header));
     setSerialColumn(foundSerialColumn || headers[0] || '');
+    setProductIdColumn(foundProductIdColumn || '');
   };
 
   const submitCsvList = async () => {
@@ -181,19 +185,25 @@ export function OrgDashboard() {
       return;
     }
 
-    const serials = csvRows
-      .map((row) => row[columnIndex] || '')
-      .map((serial) => serial.trim())
-      .filter(Boolean);
+    const productIdColumnIndex = productIdColumn
+      ? csvHeaders.findIndex((header) => header === productIdColumn)
+      : -1;
 
-    if (!serials.length) {
+    const rows = csvRows
+      .map((row) => ({
+        serialNumber: (row[columnIndex] || '').trim(),
+        productId: productIdColumnIndex >= 0 ? (row[productIdColumnIndex] || '').trim() : undefined
+      }))
+      .filter((row) => Boolean(row.serialNumber));
+
+    if (!rows.length) {
       setCsvError('Aucun numéro de série valide trouvé dans la colonne sélectionnée.');
       return;
     }
 
     const result = await api('/org/confirm-serial-list', {
       method: 'POST',
-      body: JSON.stringify({ serials })
+      body: JSON.stringify({ rows })
     });
 
     setMessage(`Liste traitée: ${result.matched} trouvé(s) dans l'inventaire, ${result.created} ajouté(s) manuellement.`);
@@ -201,6 +211,7 @@ export function OrgDashboard() {
     setCsvHeaders([]);
     setCsvRows([]);
     setSerialColumn('');
+    setProductIdColumn('');
     setCsvError('');
     await load(page, pageSize);
   };
@@ -295,17 +306,28 @@ export function OrgDashboard() {
         <div className="modal-backdrop" role="presentation">
           <section className="modal" role="dialog" aria-modal="true" aria-label="Charger une liste CSV">
             <h3>Charger une liste CSV</h3>
-            <p>Importez un fichier CSV puis sélectionnez la colonne contenant les numéros de série.</p>
+            <p>Importez un fichier CSV puis associez les colonnes importées aux champs requis.</p>
             <input className="input" type="file" accept=".csv,text/csv" onChange={(e) => onCsvFile(e.target.files?.[0])} />
             {!!csvHeaders.length && (
-              <label className="stack">
-                Colonne numéro de série
-                <select className="input" value={serialColumn} onChange={(e) => setSerialColumn(e.target.value)}>
-                  {csvHeaders.map((header) => (
-                    <option key={header} value={header}>{header}</option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label className="stack">
+                  Colonne Serial Number (obligatoire)
+                  <select className="input" value={serialColumn} onChange={(e) => setSerialColumn(e.target.value)}>
+                    {csvHeaders.map((header) => (
+                      <option key={header} value={header}>{header}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="stack">
+                  Colonne Product ID (facultatif)
+                  <select className="input" value={productIdColumn} onChange={(e) => setProductIdColumn(e.target.value)}>
+                    <option value="">Aucune colonne</option>
+                    {csvHeaders.map((header) => (
+                      <option key={header} value={header}>{header}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
             )}
             {csvError && <p>{csvError}</p>}
             <div className="button-row">
