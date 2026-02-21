@@ -21,7 +21,9 @@ export function InventoryTable({
   visibleColumns?: string[];
   canEdit?: boolean;
 }) {
-  const [activeFilter, setActiveFilter] = useState<string>('');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const tableColumns = useMemo(() => {
     if (visibleColumns?.length) {
@@ -42,14 +44,48 @@ export function InventoryTable({
     return Array.from(columns);
   }, [items, visibleColumns]);
 
-  const filtered = useMemo(() => {
-    if (!activeFilter) return items;
-    return items.filter((item) => String(item.status || '').toUpperCase() === activeFilter);
-  }, [items, activeFilter]);
+  const filterValuesByColumn = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    tableColumns.forEach((column) => {
+      const values = Array.from(new Set(items.map((item) => String(item[column] ?? '').trim()).filter(Boolean)));
+      result[column] = values;
+    });
+    return result;
+  }, [items, tableColumns]);
 
-  const toggleFilter = (column: string) => {
-    if (column !== 'status') return;
-    setActiveFilter((prev) => (prev === 'PENDING' ? 'CONFIRMED' : prev === 'CONFIRMED' ? 'NEEDS_CLARIFICATION' : prev === 'NEEDS_CLARIFICATION' ? '' : 'PENDING'));
+  const sortedAndFilteredItems = useMemo(() => {
+    const filteredItems = items.filter((item) => Object.entries(columnFilters).every(([column, value]) => String(item[column] ?? '') === value));
+    if (!sortColumn) return filteredItems;
+
+    return [...filteredItems].sort((a, b) => {
+      const left = String(a[sortColumn] ?? '').toLowerCase();
+      const right = String(b[sortColumn] ?? '').toLowerCase();
+      if (left === right) return 0;
+      const cmp = left > right ? 1 : -1;
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [items, columnFilters, sortColumn, sortDirection]);
+
+  const toggleSort = (column: string) => {
+    if (sortColumn !== column) {
+      setSortColumn(column);
+      setSortDirection('asc');
+      return;
+    }
+
+    setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const updateFilter = (column: string, value: string) => {
+    setColumnFilters((currentFilters) => {
+      if (!value) {
+        const nextFilters = { ...currentFilters };
+        delete nextFilters[column];
+        return nextFilters;
+      }
+
+      return { ...currentFilters, [column]: value };
+    });
   };
 
   return (
@@ -59,17 +95,25 @@ export function InventoryTable({
           <tr>
             {tableColumns.map((column) => (
               <th key={column}>
-                <button className="header-filter" type="button" onClick={() => toggleFilter(column)}>
-                  {prettify(column)}
-                  {column === 'status' && activeFilter ? ` (${activeFilter})` : ''}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <button className="header-filter" type="button" onClick={() => toggleSort(column)}>
+                    {prettify(column)}
+                    {sortColumn === column ? ` (${sortDirection === 'asc' ? '↑' : '↓'})` : ''}
+                  </button>
+                  <select value={columnFilters[column] || ''} onChange={(event) => updateFilter(column, event.target.value)}>
+                    <option value="">Tous</option>
+                    {filterValuesByColumn[column]?.map((value) => (
+                      <option key={`${column}-${value}`} value={value}>{value}</option>
+                    ))}
+                  </select>
+                </div>
               </th>
             ))}
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          {filtered.map((item) => (
+          {sortedAndFilteredItems.map((item) => (
             <tr key={item.id}>
               {tableColumns.map((column) => (
                 <td key={`${item.id}-${column}`}>

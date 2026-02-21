@@ -54,6 +54,15 @@ export class AdminController {
     return this.prisma.inventoryItem.findMany({ where: { inventoryFileId: fileId }, orderBy: { rowNumber: 'asc' } });
   }
 
+  @Get('inventory-files/:fileId/audit-logs')
+  async inventoryAuditLogs(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+    return this.prisma.auditLog.findMany({
+      where: { scope: 'INVENTORY_FILE', scopeId: fileId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   @Patch('inventory-files/:fileId/publish')
   async publishInventory(@Req() req: any, @Param('fileId') fileId: string, @Body() body: { visibleColumns?: string[] }) {
     this.assertAdmin(req);
