@@ -13,6 +13,7 @@ export function AdminDashboard() {
   const [details, setDetails] = useState<any | null>(null);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', pin: '' });
   const [uploadOrgId, setUploadOrgId] = useState('');
@@ -35,6 +36,7 @@ export function AdminDashboard() {
     setSelectedFileId('');
     setInventoryItems([]);
     setColumnFilter('ALL');
+    setVisibleColumns(['rowNumber', 'assetTag', 'serial', 'status']);
   };
 
   const loadInventory = async (fileId: string) => {
@@ -128,22 +130,47 @@ export function AdminDashboard() {
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
 
-  const availableColumns = useMemo(() => {
+  const inventoryDbColumns = useMemo(() => {
+    const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt']);
     const all = new Set<string>();
     inventoryItems.forEach((item) => {
-      Object.entries(item).forEach(([key, value]) => {
-        if (!['id', 'inventoryFileId', 'updatedAt'].includes(key) && value) {
+      Object.keys(item).forEach((key) => {
+        if (!technicalColumns.has(key)) {
           all.add(key);
         }
       });
     });
-    return ['ALL', ...Array.from(all)];
+    return Array.from(all);
   }, [inventoryItems]);
+
+  useEffect(() => {
+    if (!inventoryDbColumns.length) {
+      setVisibleColumns([]);
+      return;
+    }
+
+    setVisibleColumns((current) => {
+      const kept = current.filter((column) => inventoryDbColumns.includes(column));
+      if (kept.length) return kept;
+      return inventoryDbColumns.slice(0, 6);
+    });
+  }, [inventoryDbColumns]);
+
+  const availableColumns = useMemo(() => ['ALL', ...inventoryDbColumns], [inventoryDbColumns]);
 
   const filteredItems = useMemo(() => {
     if (columnFilter === 'ALL') return inventoryItems;
     return inventoryItems.filter((item) => Boolean(item[columnFilter]));
   }, [inventoryItems, columnFilter]);
+
+  const toggleVisibleColumn = (column: string) => {
+    setVisibleColumns((current) => {
+      if (current.includes(column)) {
+        return current.filter((col) => col !== column);
+      }
+      return [...current, column];
+    });
+  };
 
   return (
     <AppShell>
@@ -258,24 +285,39 @@ export function AdminDashboard() {
                 </select>
                 <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
               </div>
+
+              <div className="stack">
+                <h4>Colonnes affichées</h4>
+                <div className="button-row">
+                  {inventoryDbColumns.map((column) => (
+                    <label key={column} className="link-button" style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(column)}
+                        onChange={() => toggleVisibleColumn(column)}
+                      />
+                      {column}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Asset</th>
-                      <th>Serial</th>
-                      <th>Status</th>
+                      {visibleColumns.map((column) => (
+                        <th key={column}>{column}</th>
+                      ))}
                       <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredItems.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.rowNumber}</td>
-                        <td>{item.assetTag}</td>
-                        <td>{item.serial}</td>
-                        <td>{item.status}</td>
+                        {visibleColumns.map((column) => (
+                          <td key={`${item.id}-${column}`}>{item[column] ?? '-'}</td>
+                        ))}
                         <td>
                           <button className="button danger" type="button" onClick={() => removeItem(item.id)}>Retirer</button>
                         </td>
