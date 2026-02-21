@@ -10,9 +10,9 @@ export function AdminDashboard() {
   const [view, setView] = useState<AdminView>('CREATE');
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', pin: '' });
+  const [uploadOrgId, setUploadOrgId] = useState('');
   const [batchName, setBatchName] = useState('');
   const [xlsx, setXlsx] = useState<File | null>(null);
-  const [lastCreatedOrgId, setLastCreatedOrgId] = useState('');
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -50,15 +50,22 @@ export function AdminDashboard() {
       body: JSON.stringify({ pin: orgForm.pin })
     });
 
-    setLastCreatedOrgId(createdOrg.id);
     setOrgForm({ orgCode: '', regionCode: '', displayName: '', pin: '' });
-    setMessage('Organisation créée avec succès.');
+    setView('LIST');
+    setMessage('Organisation créée avec succès. Vous pouvez maintenant téléverser son inventaire depuis la liste.');
     await loadOrgs();
   };
 
+  const openUpload = (orgId: string) => {
+    setUploadOrgId(orgId);
+    setBatchName('');
+    setXlsx(null);
+    setMessage('');
+  };
+
   const importInventory = async () => {
-    if (!lastCreatedOrgId) {
-      setMessage('Veuillez créer une organisation avant de téléverser un inventaire.');
+    if (!uploadOrgId) {
+      setMessage('Veuillez sélectionner une organisation dans la liste pour téléverser un inventaire.');
       return;
     }
     if (!batchName.trim() || !xlsx) {
@@ -71,14 +78,15 @@ export function AdminDashboard() {
       body: JSON.stringify({ name: batchName.trim() })
     });
 
-    await api(`/admin/batches/${createdBatch.id}/orgs/${lastCreatedOrgId}/access-pin`, { method: 'POST' });
+    await api(`/admin/batches/${createdBatch.id}/orgs/${uploadOrgId}/access-pin`, { method: 'POST' });
 
     const form = new FormData();
     form.append('file', xlsx);
-    const out = await apiForm(`/admin/batches/${createdBatch.id}/orgs/${lastCreatedOrgId}/import-excel`, form, { method: 'POST' });
+    const out = await apiForm(`/admin/batches/${createdBatch.id}/orgs/${uploadOrgId}/import-excel`, form, { method: 'POST' });
 
     setBatchName('');
     setXlsx(null);
+    setUploadOrgId('');
     setMessage(`Inventaire téléversé avec succès (${out.rowCount} lignes).`);
   };
 
@@ -113,11 +121,6 @@ export function AdminDashboard() {
             <input className="input" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
-
-          <h3>Volet facultatif</h3>
-          <input className="input" placeholder="Nom de l'inventaire chargé" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
-          <input className="input" type="file" accept=".xlsx,.xls" onChange={onFile} />
-          <button className="button" type="button" onClick={importInventory}>Téléverser</button>
         </section>
       ) : (
         <section className="panel stack">
@@ -129,6 +132,7 @@ export function AdminDashboard() {
                   <th>Code Organisation</th>
                   <th>Code Region</th>
                   <th>Nom affiché</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,11 +141,28 @@ export function AdminDashboard() {
                     <td>{o.orgCode}</td>
                     <td>{o.regionCode}</td>
                     <td>{o.displayName}</td>
+                    <td>
+                      <button className="icon-button" type="button" title="Téléverser un inventaire" onClick={() => openUpload(o.id)}>
+                        ⬆️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {uploadOrgId && (
+            <section className="panel stack upload-panel">
+              <h3>Téléverser un inventaire</h3>
+              <input className="input" placeholder="Nom de la liste d'inventaire" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
+              <input className="input" type="file" accept=".xlsx,.xls" onChange={onFile} />
+              <div className="button-row">
+                <button className="button" type="button" onClick={importInventory}>Charger le fichier</button>
+                <button className="button secondary" type="button" onClick={() => setUploadOrgId('')}>Annuler</button>
+              </div>
+            </section>
+          )}
         </section>
       )}
 

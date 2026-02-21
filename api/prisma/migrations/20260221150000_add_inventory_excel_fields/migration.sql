@@ -1,0 +1,22 @@
+-- AlterTable
+ALTER TABLE "InventoryItem" ADD COLUMN "instanceNumber" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serialNumber" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "productId" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "productDescription" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "major" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "productType" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "productFamily" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "architecture" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "subArchitecture" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "quantity" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "ldos" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "ldosDetailsInMonths" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "centreDeSanteRegional" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serviceableFlag" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "contractNumber" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serviceLevel" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serviceLevelDescription" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serviceStartDate" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "serviceEndDate" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "globalServiceList" TEXT;
+ALTER TABLE "InventoryItem" ADD COLUMN "excludedAsset" TEXT;

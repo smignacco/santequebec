@@ -72,14 +72,53 @@ export class AdminController {
     const rows = XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
     const inv = await this.prisma.inventoryFile.create({ data: { batchId, organizationId: orgId, sourceFilename: file.originalname, sourceChecksum: checksum, rowCount: rows.length, status: 'NOT_SUBMITTED' } });
-    const norm = (k: string) => k.toLowerCase().replace(/\s+/g, '');
+    const norm = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const pick = (aliases: string[]) => {
         const key = Object.keys(row).find((k) => aliases.includes(norm(k)));
-        return key ? String(row[key] ?? '') : null;
+        const value = key ? row[key] : null;
+        if (value === undefined || value === null || value === '') return null;
+        return String(value);
       };
-      await this.prisma.inventoryItem.create({ data: { inventoryFileId: inv.id, rowNumber: i + 1, assetTag: pick(['assettag', 'tagactif']), serial: pick(['serial', 'numeroserie']), model: pick(['model', 'modele']), site: pick(['site']), location: pick(['location', 'emplacement']), notes: pick(['notes', 'note']), status: 'PENDING' } });
+
+      const serialNumber = pick(['serialnumber', 'serial', 'numeroserie']);
+      const productDescription = pick(['productdescription', 'model', 'modele']);
+
+      await this.prisma.inventoryItem.create({
+        data: {
+          inventoryFileId: inv.id,
+          rowNumber: i + 1,
+          assetTag: pick(['assettag', 'tagactif']),
+          serial: serialNumber,
+          model: productDescription,
+          site: pick(['site']),
+          location: pick(['location', 'emplacement']),
+          notes: pick(['notes', 'note']),
+          instanceNumber: pick(['instancenumber']),
+          serialNumber,
+          productId: pick(['productid']),
+          productDescription,
+          major: pick(['major']),
+          productType: pick(['producttype']),
+          productFamily: pick(['productfamily']),
+          architecture: pick(['architecture']),
+          subArchitecture: pick(['subarchitecture']),
+          quantity: pick(['quantity']),
+          ldos: pick(['ldos']),
+          ldosDetailsInMonths: pick(['ldosdetailsinmonths']),
+          centreDeSanteRegional: pick(['centredesanteregional']),
+          serviceableFlag: pick(['serviceableflag']),
+          contractNumber: pick(['contractnumber']),
+          serviceLevel: pick(['servicelevel']),
+          serviceLevelDescription: pick(['serviceleveldescription']),
+          serviceStartDate: pick(['servicestartdate']),
+          serviceEndDate: pick(['serviceenddate']),
+          globalServiceList: pick(['globalservicelist']),
+          excludedAsset: pick(['excludedasset']),
+          status: 'PENDING'
+        }
+      });
     }
     return { inventoryFileId: inv.id, rowCount: rows.length };
   }

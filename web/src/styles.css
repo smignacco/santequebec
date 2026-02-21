@@ -184,3 +184,17 @@ th {
   color: #03516a;
   font-size: 0.8rem;
 }
+
+.icon-button {
+  border: 1px solid #cfdae7;
+  background: #f4f9fe;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0.4rem 0.55rem;
+}
+
+.upload-panel {
+  margin-top: 1rem;
+  border: 1px solid #e7edf4;
+  box-shadow: none;
+}
