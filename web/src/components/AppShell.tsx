@@ -1,7 +1,16 @@
 import { PropsWithChildren } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { clearToken, getCurrentRole } from '../auth';
 
 export function AppShell({ children }: PropsWithChildren) {
+  const role = getCurrentRole();
+  const navigate = useNavigate();
+
+  const logout = () => {
+    clearToken();
+    navigate('/login');
+  };
+
   return (
     <div className="page-shell">
       <header className="top-nav">
@@ -14,9 +23,9 @@ export function AppShell({ children }: PropsWithChildren) {
           <strong>Cisco x Santé Québec</strong>
         </div>
         <nav className="nav-links">
-          <Link to="/login">Portail organisation</Link>
-          <Link to="/org">Inventaire</Link>
-          <Link to="/admin">Administration</Link>
+          {role === 'ORG_USER' && <Link to="/org">Inventaire organisation</Link>}
+          {role === 'ADMIN' && <Link to="/admin">Administration</Link>}
+          <button className="button secondary" type="button" onClick={logout}>Déconnexion</button>
         </nav>
       </header>
       <main className="main-content">{children}</main>

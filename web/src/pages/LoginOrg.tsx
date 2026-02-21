@@ -1,60 +1,72 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
-import { AppShell } from '../components/AppShell';
-
-type PublicOrg = {
-  displayName: string;
-  orgCode: string;
-};
+import { saveToken } from '../auth';
 
 export function LoginOrg() {
-  const [form, setForm] = useState({ orgCode: '', pin: '', name: '', email: '' });
-  const [orgs, setOrgs] = useState<PublicOrg[]>([]);
+  const [orgForm, setOrgForm] = useState({ orgCode: '', pin: '', name: '', email: '' });
+  const [adminForm, setAdminForm] = useState({ username: '', password: '' });
+  const [mode, setMode] = useState<'ORG' | 'ADMIN'>('ORG');
+  const [error, setError] = useState('');
   const nav = useNavigate();
 
-  useEffect(() => {
-    api('/public/orgs')
-      .then(setOrgs)
-      .catch(() => setOrgs([]));
-  }, []);
-
-  const submit = async (e: FormEvent) => {
+  const submitOrg = async (e: FormEvent) => {
     e.preventDefault();
-    const data = await api('/auth/org-login', { method: 'POST', body: JSON.stringify(form) });
-    localStorage.setItem('token', data.token);
-    nav('/org');
+    try {
+      setError('');
+      const data = await api('/auth/org-login', { method: 'POST', body: JSON.stringify(orgForm) });
+      saveToken(data.token);
+      nav('/org');
+    } catch {
+      setError('Accès refusé. Vérifiez les informations de votre organisation.');
+    }
+  };
+
+  const submitAdmin = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      setError('');
+      const data = await api('/auth/admin-login', { method: 'POST', body: JSON.stringify(adminForm) });
+      saveToken(data.token);
+      nav('/admin');
+    } catch {
+      setError('Accès admin refusé. Vérifiez votre identifiant et votre mot de passe.');
+    }
   };
 
   return (
-    <AppShell>
-      <section className="hero">
-        <h1>Portail de validation d&apos;inventaire</h1>
-        <p>Expérience harmonisée avec les standards Cisco pour le déploiement Santé Québec.</p>
-      </section>
-      <section className="panel">
-        <form onSubmit={submit} className="stack">
-          <select
-            className="input"
-            value={form.orgCode}
-            onChange={(e) => setForm({ ...form, orgCode: e.target.value })}
-            required
-          >
-            <option value="">Sélectionner une organisation</option>
-            {orgs.map((org) => (
-              <option key={org.orgCode} value={org.orgCode}>
-                {org.displayName} ({org.orgCode})
-              </option>
-            ))}
-          </select>
-          <input className="input" placeholder="NIP" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} />
-          <input className="input" placeholder="Nom complet" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="Courriel" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+    <div className="page-shell">
+      <main className="main-content">
+        <section className="hero">
+          <h1>Portail sécurisé de validation d&apos;inventaire</h1>
+          <p>Seules les organisations autorisées et les administrateurs peuvent accéder aux sections de l&apos;application.</p>
+        </section>
+
+        <section className="panel stack">
           <div className="button-row">
-            <button className="button" type="submit">Se connecter</button>
+            <button className={`button ${mode === 'ORG' ? '' : 'secondary'}`} type="button" onClick={() => setMode('ORG')}>Connexion organisation</button>
+            <button className={`button ${mode === 'ADMIN' ? '' : 'secondary'}`} type="button" onClick={() => setMode('ADMIN')}>Connexion admin</button>
           </div>
-        </form>
-      </section>
-    </AppShell>
+
+          {mode === 'ORG' ? (
+            <form onSubmit={submitOrg} className="stack">
+              <input className="input" placeholder="Code organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} required />
+              <input className="input" placeholder="NIP" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
+              <input className="input" placeholder="Nom complet" value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} required />
+              <input className="input" placeholder="Courriel" type="email" value={orgForm.email} onChange={(e) => setOrgForm({ ...orgForm, email: e.target.value })} required />
+              <button className="button" type="submit">Accéder à mon inventaire</button>
+            </form>
+          ) : (
+            <form onSubmit={submitAdmin} className="stack">
+              <input className="input" placeholder="Identifiant admin" value={adminForm.username} onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })} required />
+              <input className="input" placeholder="Mot de passe admin" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required />
+              <button className="button" type="submit">Accéder à l&apos;administration</button>
+            </form>
+          )}
+
+          {error && <p>{error}</p>}
+        </section>
+      </main>
+    </div>
   );
 }

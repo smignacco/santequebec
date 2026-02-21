@@ -23,6 +23,30 @@ export class AdminController {
   @Get('orgs')
   listOrgs(@Req() req: any) { this.assertAdmin(req); return this.prisma.organization.findMany({ include: { organizationType: true } }); }
 
+
+  @Post('orgs')
+  async createOrg(@Req() req: any, @Body() body: { orgCode: string; regionCode: string; displayName: string; typeCode: string; isDrill?: boolean }) {
+    this.assertAdmin(req);
+    const type = await this.prisma.organizationType.findUniqueOrThrow({ where: { code: body.typeCode } });
+    return this.prisma.organization.create({
+      data: {
+        orgCode: body.orgCode,
+        regionCode: body.regionCode,
+        displayName: body.displayName,
+        isDrill: Boolean(body.isDrill),
+        organizationTypeId: type.id,
+        isActive: true
+      },
+      include: { organizationType: true }
+    });
+  }
+
+  @Get('batches')
+  listBatches(@Req() req: any) {
+    this.assertAdmin(req);
+    return this.prisma.batch.findMany({ orderBy: { createdAt: 'desc' } });
+  }
+
   @Post('batches')
   createBatch(@Req() req: any, @Body() body: { name: string }) { this.assertAdmin(req); return this.prisma.batch.create({ data: { name: body.name, status: 'DRAFT' } }); }
 
