@@ -25,6 +25,15 @@ export class AuthService {
   }
 
   async adminLogin(input: { username: string; password: string }) {
+    const dbAdmin = await this.prisma.adminUser.findUnique({ where: { username: input.username } });
+    if (dbAdmin?.isActive) {
+      const matchesDbPassword = await argon2.verify(dbAdmin.passwordHash, input.password);
+      if (matchesDbPassword) {
+        const token = await this.jwt.signAsync({ role: 'ADMIN', name: dbAdmin.displayName, email: dbAdmin.email });
+        return { token };
+      }
+    }
+
     const envUser = process.env.ADMIN_USER?.trim();
     const envHash = process.env.ADMIN_PASS_HASH?.trim();
 

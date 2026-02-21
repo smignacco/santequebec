@@ -13,6 +13,39 @@ export class AdminController {
 
   private assertAdmin(req: any) { if (req.user?.role !== 'ADMIN') throw new UnauthorizedException(); }
 
+  @Get('admin-users')
+  listAdminUsers(@Req() req: any) {
+    this.assertAdmin(req);
+    return this.prisma.adminUser.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, username: true, email: true, displayName: true, isActive: true, createdAt: true }
+    });
+  }
+
+  @Post('admin-users')
+  async createAdminUser(@Req() req: any, @Body() body: { username: string; email: string; displayName: string; password: string }) {
+    this.assertAdmin(req);
+    const username = body.username?.trim();
+    const email = body.email?.trim().toLowerCase();
+    const displayName = body.displayName?.trim();
+    const password = body.password || '';
+
+    if (!username || !email || !displayName || password.length < 8) {
+      throw new ConflictException('Informations administrateur invalides.');
+    }
+
+    const existing = await this.prisma.adminUser.findFirst({
+      where: { OR: [{ username }, { email }] }
+    });
+    if (existing) throw new ConflictException('Un administrateur avec ce nom d\'utilisateur ou ce courriel existe déjà.');
+
+    const passwordHash = await argon2.hash(password);
+    return this.prisma.adminUser.create({
+      data: { username, email, displayName, passwordHash, isActive: true },
+      select: { id: true, username: true, email: true, displayName: true, isActive: true, createdAt: true }
+    });
+  }
+
   @Get('org-types')
   listTypes(@Req() req: any) { this.assertAdmin(req); return this.prisma.organizationType.findMany(); }
   @Post('org-types')

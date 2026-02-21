@@ -125,3 +125,14 @@ model AuditLog {
   detailsJson String
   createdAt  DateTime   @default(now())
 }
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  displayName  String
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
