@@ -33,7 +33,11 @@ export class AuthService {
     let matchesEnv = false;
     if (envUser && envHash) {
       try {
-        matchesEnv = input.username === envUser && (await argon2.verify(envHash, input.password));
+        if (envHash.startsWith('$argon2')) {
+          matchesEnv = input.username === envUser && (await argon2.verify(envHash, input.password));
+        } else {
+          matchesEnv = input.username === envUser && envHash === input.password;
+        }
       } catch {
         matchesEnv = false;
       }

@@ -12,7 +12,7 @@ Portail web MVP (API NestJS + UI React/Vite) dans **une seule image Docker** com
 - `DATABASE_URL=file:/data/app.db`
 - `JWT_SECRET=...`
 - `ADMIN_USER=...`
-- `ADMIN_PASS_HASH=...` (argon2)
+- `ADMIN_PASS_HASH=...` (hash argon2 **ou** mot de passe en clair pour bootstrap local)
 
 ## Quickstart local
 ```bash
@@ -50,7 +50,7 @@ docker run --rm -p 8080:8080 \
   -e DATABASE_URL='file:/data/app.db' \
   -e JWT_SECRET='change-me' \
   -e ADMIN_USER='admin' \
-  -e ADMIN_PASS_HASH='$argon2id$...' \
+  -e ADMIN_PASS_HASH='admin123!' \
   -v $(pwd)/.data:/data santequebec:latest
 
 # oc apply
