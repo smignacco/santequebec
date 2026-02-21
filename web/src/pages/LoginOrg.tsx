@@ -38,8 +38,17 @@ export function LoginOrg() {
     <div className="page-shell">
       <main className="main-content">
         <section className="hero">
-          <h1>Portail sécurisé de validation d&apos;inventaire</h1>
-          <p>Seules les organisations autorisées et les administrateurs peuvent accéder aux sections de l&apos;application.</p>
+          <div className="login-brand">
+            <img
+              className="login-brand-logo"
+              src="https://sante.quebec/inc/images/piv/qc-drapeau-sante-qc.svg"
+              alt="Logo Santé Québec"
+            />
+            <div>
+              <h1>Gestion de l&apos;inventaire Cisco</h1>
+              <p>Portail sécurisé de validation d&apos;inventaire. Seules les organisations autorisées et les administrateurs peuvent accéder aux sections de l&apos;application.</p>
+            </div>
+          </div>
         </section>
 
         <section className="panel stack">

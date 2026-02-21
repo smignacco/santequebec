@@ -88,6 +88,19 @@ a {
   border-left: 6px solid var(--cisco-blue-500);
 }
 
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.login-brand-logo {
+  width: 180px;
+  max-width: 40vw;
+  height: auto;
+}
+
 .hero h1 {
   margin: 0;
   font-size: 1.6rem;
