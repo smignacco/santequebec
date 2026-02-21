@@ -89,6 +89,13 @@ a {
 }
 
 
+
+.login-hero {
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .login-brand {
   display: flex;
   align-items: center;

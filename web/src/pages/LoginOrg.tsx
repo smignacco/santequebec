@@ -37,7 +37,7 @@ export function LoginOrg() {
   return (
     <div className="page-shell">
       <main className="main-content">
-        <section className="hero">
+        <section className="hero login-hero">
           <div className="login-brand">
             <img
               className="login-brand-logo"
