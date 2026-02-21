@@ -26,6 +26,7 @@ export function OrgDashboard() {
   }, []);
 
   const patch = async (id: string, status: string) => {
+    if (isLocked) return;
     await api(`/org/items/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     await load(page, pageSize);
   };
@@ -37,12 +38,22 @@ export function OrgDashboard() {
 
   const submit = async () => {
     await api('/org/submit', { method: 'POST' });
-    setMessage('Inventaire soumis avec succès.');
+    setMessage('La liste a été validée et soumise correctement.');
+    await load(page, pageSize);
+  };
+
+  const resumeValidation = async () => {
+    await api('/org/resume-validation', { method: 'POST' });
+    setMessage('La liste est remise en cours de validation. Vous pouvez faire des ajustements.');
     await load(page, pageSize);
   };
 
   const total = data.total || 0;
   const confirmed = data.confirmed || 0;
+  const fileStatus = data.fileStatus || '';
+  const isLocked = Boolean(data.isLocked);
+  const canSubmit = fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED';
+  const canResume = fileStatus === 'CONFIRMED' && !isLocked;
   const completion = total ? Math.round((confirmed / total) * 100) : 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -70,11 +81,14 @@ export function OrgDashboard() {
             <div className="progress-value" style={{ width: `${completion}%` }} />
           </div>
           <p>{confirmed} validés sur {total} ({completion}%)</p>
+          {fileStatus === 'CONFIRMED' && <p><strong>Statut:</strong> Confirmé auprès des administrateurs.</p>}
+          {isLocked && <p><strong>Statut:</strong> Inventaire verrouillé par un administrateur.</p>}
         </div>
 
         <div className="button-row">
-          <button className="button" onClick={submit}>Soumettre l&apos;inventaire</button>
-          <button className="button secondary" onClick={saveProgress}>Sauvegarder la progression</button>
+          <button className="button" onClick={submit} disabled={!canSubmit || isLocked}>Soumettre l&apos;inventaire</button>
+          <button className="button secondary" onClick={resumeValidation} disabled={!canResume}>Remettre en cours de validation</button>
+          <button className="button secondary" onClick={saveProgress} disabled={isLocked}>Sauvegarder la progression</button>
           <button className="button secondary" onClick={() => load(page, pageSize)}>Actualiser</button>
           <span className="badge">{total} actifs</span>
         </div>
@@ -101,7 +115,7 @@ export function OrgDashboard() {
           </label>
         </div>
 
-        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} />
+        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} canEdit={!isLocked} />
       </section>
 
       {message && (

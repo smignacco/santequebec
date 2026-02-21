@@ -39,6 +39,7 @@ export class AdminController {
         id: file.id,
         name: file.batch?.name || file.sourceFilename,
         status: file.status,
+        isLocked: file.isLocked,
         rowCount: file.rowCount,
         importedAt: file.importedAt,
         confirmedCount: file.items.filter((item: any) => item.status === 'CONFIRMED').length,
@@ -72,9 +73,27 @@ export class AdminController {
       where: { id: fileId },
       data: {
         status: 'PUBLISHED',
+        isLocked: false,
         publishedColumns: uniqueColumns.length ? JSON.stringify(uniqueColumns) : null
       }
     });
+  }
+
+
+  @Patch('inventory-files/:fileId/lock')
+  async lockInventory(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+    const file = await this.prisma.inventoryFile.update({ where: { id: fileId }, data: { isLocked: true } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ADMIN', actorName: req.user.name, actorEmail: req.user.email, action: 'ADMIN_LOCK_INVENTORY', detailsJson: JSON.stringify({ isLocked: true }) } });
+    return file;
+  }
+
+  @Patch('inventory-files/:fileId/unlock')
+  async unlockInventory(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+    const file = await this.prisma.inventoryFile.update({ where: { id: fileId }, data: { isLocked: false } });
+    await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ADMIN', actorName: req.user.name, actorEmail: req.user.email, action: 'ADMIN_UNLOCK_INVENTORY', detailsJson: JSON.stringify({ isLocked: false }) } });
+    return file;
   }
 
   @Delete('inventory-items/:itemId')

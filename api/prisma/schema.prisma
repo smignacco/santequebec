@@ -71,6 +71,7 @@ model InventoryFile {
   rowCount       Int
   publishedColumns String?
   status         String @default("NOT_SUBMITTED")
+  isLocked       Boolean @default(false)
   batch          Batch               @relation(fields: [batchId], references: [id])
   organization   Organization        @relation(fields: [organizationId], references: [id])
   items          InventoryItem[]

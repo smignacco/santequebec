@@ -125,6 +125,22 @@ export function AdminDashboard() {
     if (selectedOrgId) await loadOrgDetails(selectedOrgId);
   };
 
+  const lockInventory = async () => {
+    if (!selectedFileId) return;
+    await api(`/admin/inventory-files/${selectedFileId}/lock`, { method: 'PATCH' });
+    setMessage('Inventaire verrouillé. L\'organisation ne peut plus faire de modifications.');
+    if (selectedOrgId) await loadOrgDetails(selectedOrgId);
+  };
+
+  const unlockInventory = async () => {
+    if (!selectedFileId) return;
+    await api(`/admin/inventory-files/${selectedFileId}/unlock`, { method: 'PATCH' });
+    setMessage('Inventaire déverrouillé. L\'organisation peut reprendre la validation.');
+    if (selectedOrgId) await loadOrgDetails(selectedOrgId);
+  };
+
+  const selectedInventory = details?.inventoryFiles?.find((file: any) => file.id === selectedFileId);
+
   const removeItem = async (itemId: string) => {
     await api(`/admin/inventory-items/${itemId}`, { method: 'DELETE' });
     if (selectedFileId) {
@@ -279,6 +295,7 @@ export function AdminDashboard() {
                       <th>Statut</th>
                       <th>Total</th>
                       <th>Confirmés</th>
+                      <th>Verrouillage</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -288,6 +305,7 @@ export function AdminDashboard() {
                         <td>{f.status}</td>
                         <td>{f.rowCount}</td>
                         <td>{f.confirmedCount}</td>
+                        <td>{f.isLocked ? 'Verrouillé' : 'Déverrouillé'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -304,7 +322,11 @@ export function AdminDashboard() {
                   {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
                 </select>
                 <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+                <button className="button secondary" type="button" onClick={lockInventory} disabled={!selectedInventory || selectedInventory.isLocked}>Verrouiller</button>
+                <button className="button secondary" type="button" onClick={unlockInventory} disabled={!selectedInventory || !selectedInventory.isLocked}>Déverrouiller</button>
               </div>
+
+              {selectedInventory && <p><strong>État actuel:</strong> {selectedInventory.isLocked ? 'Verrouillé' : 'Déverrouillé'} · Statut: {selectedInventory.status}</p>}
 
               <div className="stack">
                 <h4>Colonnes affichées</h4>

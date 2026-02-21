@@ -13,11 +13,13 @@ const prettify = (column: string) => {
 export function InventoryTable({
   items,
   onPatch,
-  visibleColumns
+  visibleColumns,
+  canEdit = true
 }: {
   items: any[];
   onPatch: (id: string, status: string) => void;
   visibleColumns?: string[];
+  canEdit?: boolean;
 }) {
   const [activeFilter, setActiveFilter] = useState<string>('');
 
@@ -76,8 +78,8 @@ export function InventoryTable({
               ))}
               <td>
                 <div className="button-row">
-                  <button className="button success" onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
-                  <button className="button warning" onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button success" disabled={!canEdit} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
+                  <button className="button warning" disabled={!canEdit} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
                 </div>
               </td>
             </tr>
