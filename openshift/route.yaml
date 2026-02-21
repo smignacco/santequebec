@@ -1,0 +1,10 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: santequebec
+spec:
+  to:
+    kind: Service
+    name: santequebec
+  port:
+    targetPort: 8080
