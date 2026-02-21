@@ -79,4 +79,4 @@ oc apply -f openshift/
 ## Compte admin initial
 - Identifiant par défaut: `admin`
 - Mot de passe par défaut: `Admin123!`
-- Vous pouvez surcharger avec `ADMIN_USER` et `ADMIN_PASS_HASH`.
+- Vous pouvez ajouter un compte admin via `ADMIN_USER` et `ADMIN_PASS_HASH` (le compte par défaut reste disponible pour le premier accès).
