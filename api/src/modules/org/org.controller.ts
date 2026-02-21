@@ -150,6 +150,7 @@ export class OrgController {
           inventoryFileId: inv.id,
           rowNumber: item.rowNumber,
           serial: item.serial,
+          serialNumber: item.serial,
           productDescription: 'Ajouté manuellement',
           notes: 'Ajouté manuellement',
           status: 'CONFIRMED'
