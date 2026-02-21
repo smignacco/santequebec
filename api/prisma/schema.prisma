@@ -7,39 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum BatchStatus {
-  DRAFT
-  IN_REVIEW
-  LOCKED
-}
 
-enum InventoryFileStatus {
-  NOT_SUBMITTED
-  SUBMITTED
-  APPROVED
-  LOCKED
-}
 
-enum InventoryItemStatus {
-  PENDING
-  CONFIRMED
-  NEEDS_CLARIFICATION
-  UPDATED
-}
 
-enum AuditScope {
-  ORG_ACCESS
-  INVENTORY_ITEM
-  INVENTORY_FILE
-  BATCH
-  ORG
-  ORG_TYPE
-}
 
-enum ActorType {
-  ADMIN
-  ORG_USER
-}
 
 model OrganizationType {
   id        String         @id @default(cuid())
@@ -68,7 +39,7 @@ model Organization {
 model Batch {
   id        String      @id @default(cuid())
   name      String
-  status    BatchStatus @default(DRAFT)
+  status    String @default("DRAFT")
   access    OrgAccess[]
   inventoryFiles InventoryFile[]
   createdAt DateTime    @default(now())
@@ -98,7 +69,7 @@ model InventoryFile {
   sourceChecksum String
   importedAt     DateTime            @default(now())
   rowCount       Int
-  status         InventoryFileStatus @default(NOT_SUBMITTED)
+  status         String @default("NOT_SUBMITTED")
   batch          Batch               @relation(fields: [batchId], references: [id])
   organization   Organization        @relation(fields: [organizationId], references: [id])
   items          InventoryItem[]
@@ -114,16 +85,16 @@ model InventoryItem {
   site            String?
   location        String?
   notes           String?
-  status          InventoryItemStatus @default(PENDING)
+  status          String @default("PENDING")
   updatedAt       DateTime            @updatedAt
   inventoryFile   InventoryFile       @relation(fields: [inventoryFileId], references: [id])
 }
 
 model AuditLog {
   id         String     @id @default(cuid())
-  scope      AuditScope
+  scope      String
   scopeId    String
-  actorType  ActorType
+  actorType  String
   actorName  String
   actorEmail String
   action     String
