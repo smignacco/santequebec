@@ -15,7 +15,7 @@ export function AdminDashboard() {
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [inventoryAuditLogs, setInventoryAuditLogs] = useState<any[]>([]);
   const [columnFilter, setColumnFilter] = useState('ALL');
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'assetTag', 'serial', 'status']);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['rowNumber', 'serialNumber', 'productId', 'productDescription', 'productType', 'architecture', 'status']);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
@@ -41,7 +41,7 @@ export function AdminDashboard() {
     setInventoryItems([]);
     setInventoryAuditLogs([]);
     setColumnFilter('ALL');
-    setVisibleColumns(['rowNumber', 'assetTag', 'serial', 'status']);
+    setVisibleColumns(['rowNumber', 'serialNumber', 'productId', 'productDescription', 'productType', 'architecture', 'status']);
   };
 
   const loadInventory = async (fileId: string) => {
@@ -170,7 +170,7 @@ export function AdminDashboard() {
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
 
   const inventoryDbColumns = useMemo(() => {
-    const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt']);
+    const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt', 'assetTag', 'serial', 'model', 'site', 'location']);
     const all = new Set<string>();
     inventoryItems.forEach((item) => {
       Object.keys(item).forEach((key) => {
@@ -191,7 +191,9 @@ export function AdminDashboard() {
     setVisibleColumns((current) => {
       const kept = current.filter((column) => inventoryDbColumns.includes(column));
       if (kept.length) return kept;
-      return inventoryDbColumns.slice(0, 6);
+      const defaultColumns = ['rowNumber', 'serialNumber', 'productId', 'productDescription', 'productType', 'architecture', 'status'];
+      const preferred = defaultColumns.filter((column) => inventoryDbColumns.includes(column));
+      return preferred.length ? preferred : inventoryDbColumns.slice(0, 6);
     });
   }, [inventoryDbColumns]);
 

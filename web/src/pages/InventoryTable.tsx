@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt']);
+const defaultVisibleColumns = ['rowNumber', 'serialNumber', 'productId', 'productDescription', 'productType', 'architecture', 'status'];
 
 const prettify = (column: string) => {
   if (!column) return '';
@@ -30,7 +31,7 @@ export function InventoryTable({
       return visibleColumns.filter((column) => !technicalColumns.has(column));
     }
 
-    if (!items.length) return ['rowNumber', 'assetTag', 'serial', 'status'];
+    if (!items.length) return defaultVisibleColumns;
 
     const columns = new Set<string>();
     items.forEach((item) => {
@@ -124,7 +125,7 @@ export function InventoryTable({
                 <div className="button-row">
                   <button className="button success" disabled={!canEdit} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
                   <button className="button warning" disabled={!canEdit} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
-                  <button className="button danger" disabled={!canEdit} onClick={() => onPatch(item.id, 'À retirer')}>Retirer</button>
+                  <button className="button danger" disabled={!canEdit} onClick={() => onPatch(item.id, 'TO_BE_REMOVED')}>Retirer</button>
                 </div>
               </td>
             </tr>
