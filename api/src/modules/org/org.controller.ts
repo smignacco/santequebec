@@ -40,7 +40,7 @@ export class OrgController {
     if (status) where.status = status;
     if (q) where.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
     const total = await this.prisma.inventoryItem.count({ where });
-    const confirmed = await this.prisma.inventoryItem.count({ where: { ...where, status: 'CONFIRMED' } });
+    const confirmed = await this.prisma.inventoryItem.count({ where: { ...where, status: { in: ['CONFIRMED', 'TO_BE_REMOVED'] } } });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
 
     let visibleColumns: string[] = [];
@@ -56,6 +56,48 @@ export class OrgController {
     }
 
     return { total, confirmed, page: p, pageSize: ps, items, visibleColumns, fileStatus: file.status, isLocked: file.isLocked };
+  }
+
+  @Patch('items')
+  async updateItems(@Req() req: any, @Body() body: { ids?: string[]; status?: string }) {
+    this.assertOrg(req);
+
+    const ids = Array.from(new Set((body.ids || []).filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+    if (!ids.length || !body.status) {
+      return { updated: 0 };
+    }
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { id: { in: ids } },
+      include: { inventoryFile: true }
+    });
+
+    const canUpdateIds = items
+      .filter((item) => item.inventoryFile.organizationId === req.user.organizationId && !item.inventoryFile.isLocked)
+      .map((item) => item.id);
+
+    if (!canUpdateIds.length) {
+      return { updated: 0 };
+    }
+
+    const updated = await this.prisma.inventoryItem.updateMany({
+      where: { id: { in: canUpdateIds } },
+      data: { status: body.status }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'INVENTORY_FILE',
+        scopeId: items[0]?.inventoryFileId || req.user.organizationId,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'ITEM_STATUS_BULK_CHANGED',
+        detailsJson: JSON.stringify({ ids: canUpdateIds, status: body.status, ...this.getAuditContext(req) })
+      }
+    });
+
+    return { updated: updated.count };
   }
 
   @Patch('items/:id')
