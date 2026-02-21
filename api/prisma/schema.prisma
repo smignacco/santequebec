@@ -110,6 +110,7 @@ model InventoryItem {
   globalServiceList String?
   excludedAsset   String?
   status          String @default("PENDING")
+  manualEntry     Boolean @default(false)
   updatedAt       DateTime            @updatedAt
   inventoryFile   InventoryFile       @relation(fields: [inventoryFileId], references: [id])
 }

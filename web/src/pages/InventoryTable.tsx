@@ -15,18 +15,22 @@ export function InventoryTable({
   items,
   onPatch,
   onBulkPatch,
+  onManualEdit,
   visibleColumns,
   canEdit = true
 }: {
   items: any[];
   onPatch: (id: string, status: string) => void;
   onBulkPatch?: (ids: string[], status: string) => void;
+  onManualEdit?: (id: string, payload: { serialNumber: string; productId?: string; productDescription?: string }) => Promise<void>;
   visibleColumns?: string[];
   canEdit?: boolean;
 }) {
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingId, setEditingId] = useState<string>('');
+  const [manualForm, setManualForm] = useState({ serialNumber: '', productId: '', productDescription: '' });
 
   const tableColumns = useMemo(() => {
     if (visibleColumns?.length) {
@@ -97,6 +101,30 @@ export function InventoryTable({
     onBulkPatch(bulkIds, status);
   };
 
+  const startManualEdit = (item: any) => {
+    setEditingId(item.id);
+    setManualForm({
+      serialNumber: item.serialNumber || item.serial || '',
+      productId: item.productId || '',
+      productDescription: item.productDescription || ''
+    });
+  };
+
+  const cancelManualEdit = () => {
+    setEditingId('');
+    setManualForm({ serialNumber: '', productId: '', productDescription: '' });
+  };
+
+  const saveManualEdit = async (id: string) => {
+    if (!onManualEdit || !manualForm.serialNumber.trim()) return;
+    await onManualEdit(id, {
+      serialNumber: manualForm.serialNumber.trim(),
+      productId: manualForm.productId.trim(),
+      productDescription: manualForm.productDescription.trim()
+    });
+    cancelManualEdit();
+  };
+
   return (
     <div className="table-wrap">
       <table>
@@ -135,7 +163,15 @@ export function InventoryTable({
             <tr key={item.id}>
               {tableColumns.map((column) => (
                 <td key={`${item.id}-${column}`}>
-                  {column === 'status' ? <span className="badge">{item[column] || '-'}</span> : item[column] ?? '-'}
+                  {editingId === item.id && ['serialNumber', 'productId', 'productDescription'].includes(column) ? (
+                    <input
+                      className="input"
+                      value={manualForm[column as 'serialNumber' | 'productId' | 'productDescription']}
+                      onChange={(event) => setManualForm((current) => ({ ...current, [column]: event.target.value }))}
+                    />
+                  ) : (
+                    column === 'status' ? <span className="badge">{item[column] || '-'}</span> : item[column] ?? '-'
+                  )}
                 </td>
               ))}
               <td>
@@ -143,6 +179,16 @@ export function InventoryTable({
                   <button className="button success" disabled={!canEdit} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
                   <button className="button warning" disabled={!canEdit} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
                   <button className="button danger" disabled={!canEdit} onClick={() => onPatch(item.id, 'TO_BE_REMOVED')}>Retirer</button>
+                  {item.manualEntry && canEdit && onManualEdit && (
+                    editingId === item.id ? (
+                      <>
+                        <button className="button" type="button" onClick={() => saveManualEdit(item.id)} disabled={!manualForm.serialNumber.trim()}>Sauver</button>
+                        <button className="button secondary" type="button" onClick={cancelManualEdit}>Annuler</button>
+                      </>
+                    ) : (
+                      <button className="button secondary" type="button" onClick={() => startManualEdit(item)}>Modifier</button>
+                    )
+                  )}
                 </div>
               </td>
             </tr>

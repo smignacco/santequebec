@@ -14,10 +14,14 @@ export function OrgDashboard() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [showCsvModal, setShowCsvModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [serialColumn, setSerialColumn] = useState('');
   const [csvError, setCsvError] = useState('');
+  const [manualSerialNumber, setManualSerialNumber] = useState('');
+  const [manualProductId, setManualProductId] = useState('');
+  const [manualProductDescription, setManualProductDescription] = useState('');
 
   const load = (nextPage = page, nextPageSize = pageSize) => {
     const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
@@ -58,6 +62,31 @@ export function OrgDashboard() {
   const saveProgress = async () => {
     await load(page, pageSize);
     setMessage('Progression sauvegardée. Vous pouvez reprendre plus tard.');
+  };
+
+  const addManualItem = async () => {
+    if (isLocked || !manualSerialNumber.trim()) return;
+    await api('/org/items/manual', {
+      method: 'POST',
+      body: JSON.stringify({
+        serialNumber: manualSerialNumber,
+        productId: manualProductId,
+        productDescription: manualProductDescription
+      })
+    });
+    setManualSerialNumber('');
+    setManualProductId('');
+    setManualProductDescription('');
+    setShowManualModal(false);
+    setMessage('Item ajouté manuellement avec statut CONFIRMED.');
+    await load(page, pageSize);
+  };
+
+  const editManualItem = async (id: string, payload: { serialNumber: string; productId?: string; productDescription?: string }) => {
+    if (isLocked) return;
+    await api(`/org/items/${id}/manual-fields`, { method: 'PATCH', body: JSON.stringify(payload) });
+    setMessage('Item manuel mis à jour.');
+    await load(page, pageSize);
   };
 
   const submit = async () => {
@@ -259,6 +288,10 @@ export function OrgDashboard() {
           <span className="badge">{total} actifs</span>
         </div>
 
+        <div className="button-row">
+          <button className="button secondary" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
+        </div>
+
         <div className="table-toolbar">
           <div className="pagination-controls">
             <button className="button secondary" type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
@@ -282,13 +315,39 @@ export function OrgDashboard() {
           </label>
         </div>
 
-        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} canEdit={!isLocked} />
+        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked} />
       </section>
 
       {message && (
         <section className="panel">
           <p>{message}</p>
         </section>
+      )}
+
+
+      {showManualModal && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Ajouter un item manuellement">
+            <h3>Ajout manuel d&apos;item</h3>
+            <p>Le numéro de série est obligatoire. Product ID et Product Description sont optionnels.</p>
+            <label className="stack">
+              Numéro de série *
+              <input className="input" value={manualSerialNumber} onChange={(e) => setManualSerialNumber(e.target.value)} />
+            </label>
+            <label className="stack">
+              Product ID (optionnel)
+              <input className="input" value={manualProductId} onChange={(e) => setManualProductId(e.target.value)} />
+            </label>
+            <label className="stack">
+              Product Description (optionnel)
+              <input className="input" value={manualProductDescription} onChange={(e) => setManualProductDescription(e.target.value)} />
+            </label>
+            <div className="button-row">
+              <button className="button" type="button" onClick={addManualItem} disabled={!manualSerialNumber.trim() || isLocked}>Ajouter</button>
+              <button className="button secondary" type="button" onClick={() => setShowManualModal(false)}>Fermer</button>
+            </div>
+          </section>
+        </div>
       )}
 
       {showCsvModal && (

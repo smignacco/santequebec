@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class OrgController {
   constructor(private prisma: PrismaService) {}
   private assertOrg(req: any) { if (req.user?.role !== 'ORG_USER') throw new UnauthorizedException(); }
+  private static readonly MANUAL_EDITABLE_FIELDS = ['serial', 'serialNumber', 'productId', 'productDescription'] as const;
 
   private getAuditContext(req: any) {
     const forwardedFor = req.headers?.['x-forwarded-for'];
@@ -111,6 +112,100 @@ export class OrgController {
     return item;
   }
 
+  @Patch('items/:id/manual-fields')
+  async updateManualItemFields(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { serialNumber?: string; productId?: string; productDescription?: string }
+  ) {
+    this.assertOrg(req);
+    const oldItem = await this.prisma.inventoryItem.findUniqueOrThrow({ where: { id }, include: { inventoryFile: true } });
+    if (oldItem.inventoryFile.organizationId !== req.user.organizationId) throw new UnauthorizedException();
+    if (oldItem.inventoryFile.isLocked) throw new UnauthorizedException('Inventaire verrouillé par un administrateur.');
+    if (!oldItem.manualEntry) throw new UnauthorizedException('Seuls les items ajoutés manuellement sont modifiables.');
+
+    const normalize = (value?: string) => {
+      if (typeof value !== 'string') return undefined;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    };
+
+    const serialNumber = normalize(body.serialNumber);
+    if (serialNumber === null) {
+      throw new UnauthorizedException('Le numéro de série est obligatoire.');
+    }
+
+    const data = {
+      serial: typeof serialNumber === 'string' ? serialNumber : oldItem.serial,
+      serialNumber: typeof serialNumber === 'string' ? serialNumber : oldItem.serialNumber,
+      productId: normalize(body.productId),
+      productDescription: normalize(body.productDescription)
+    };
+
+    const item = await this.prisma.inventoryItem.update({ where: { id }, data });
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'INVENTORY_ITEM',
+        scopeId: id,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'MANUAL_ITEM_EDITED',
+        detailsJson: JSON.stringify({ old: oldItem, new: item, updatedFields: OrgController.MANUAL_EDITABLE_FIELDS })
+      }
+    });
+    return item;
+  }
+
+  @Post('items/manual')
+  async addManualItem(
+    @Req() req: any,
+    @Body() body: { serialNumber?: string; productId?: string; productDescription?: string }
+  ) {
+    this.assertOrg(req);
+
+    const inv = await this.prisma.inventoryFile.findFirstOrThrow({
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED', 'CONFIRMED'] }, isLocked: false },
+      orderBy: { importedAt: 'desc' }
+    });
+
+    const serialNumber = typeof body.serialNumber === 'string' ? body.serialNumber.trim() : '';
+    if (!serialNumber) {
+      throw new UnauthorizedException('Le numéro de série est obligatoire.');
+    }
+
+    const maxRow = await this.prisma.inventoryItem.aggregate({ where: { inventoryFileId: inv.id }, _max: { rowNumber: true } });
+    const rowNumber = (maxRow._max.rowNumber || 0) + 1;
+
+    const item = await this.prisma.inventoryItem.create({
+      data: {
+        inventoryFileId: inv.id,
+        rowNumber,
+        serial: serialNumber,
+        serialNumber,
+        productId: typeof body.productId === 'string' && body.productId.trim() ? body.productId.trim() : null,
+        productDescription: typeof body.productDescription === 'string' && body.productDescription.trim() ? body.productDescription.trim() : null,
+        notes: 'Ajouté manuellement',
+        status: 'CONFIRMED',
+        manualEntry: true
+      }
+    });
+
+    await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { rowCount: { increment: 1 } } });
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'INVENTORY_FILE',
+        scopeId: inv.id,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'MANUAL_ITEM_ADDED',
+        detailsJson: JSON.stringify({ itemId: item.id, ...this.getAuditContext(req) })
+      }
+    });
+    return item;
+  }
+
   @Post('submit')
   async submit(@Req() req: any) {
     this.assertOrg(req);
@@ -195,7 +290,8 @@ export class OrgController {
           serialNumber: item.serial,
           productDescription: 'Ajouté manuellement',
           notes: 'Ajouté manuellement',
-          status: 'CONFIRMED'
+          status: 'CONFIRMED',
+          manualEntry: true
         }
       });
     }
