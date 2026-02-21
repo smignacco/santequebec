@@ -12,6 +12,11 @@ export function OrgDashboard() {
   const [supportContactEmail, setSupportContactEmail] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvRows, setCsvRows] = useState<string[][]>([]);
+  const [serialColumn, setSerialColumn] = useState('');
+  const [csvError, setCsvError] = useState('');
 
   const load = (nextPage = page, nextPageSize = pageSize) =>
     api(`/org/items?page=${nextPage}&pageSize=${nextPageSize}`).then(setData);
@@ -78,6 +83,73 @@ export function OrgDashboard() {
     setPage(1);
   };
 
+  const onCsvFile = async (file?: File | null) => {
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!lines.length) {
+      setCsvError('Le fichier CSV est vide.');
+      setCsvHeaders([]);
+      setCsvRows([]);
+      setSerialColumn('');
+      return;
+    }
+
+    const parsed = lines.map((line) => line.split(',').map((cell) => cell.trim().replace(/^"|"$/g, '')));
+    const [headers, ...rows] = parsed;
+    if (!headers?.length) {
+      setCsvError('Impossible de lire les entêtes du CSV.');
+      return;
+    }
+
+    setCsvError('');
+    setCsvHeaders(headers);
+    setCsvRows(rows);
+    const foundSerialColumn = headers.find((header) => /serial|série|serie/i.test(header));
+    setSerialColumn(foundSerialColumn || headers[0] || '');
+  };
+
+  const submitCsvList = async () => {
+    if (!serialColumn) {
+      setCsvError('Veuillez sélectionner la colonne des numéros de série.');
+      return;
+    }
+
+    const columnIndex = csvHeaders.findIndex((header) => header === serialColumn);
+    if (columnIndex === -1) {
+      setCsvError('La colonne sélectionnée est invalide.');
+      return;
+    }
+
+    const serials = csvRows
+      .map((row) => row[columnIndex] || '')
+      .map((serial) => serial.trim())
+      .filter(Boolean);
+
+    if (!serials.length) {
+      setCsvError('Aucun numéro de série valide trouvé dans la colonne sélectionnée.');
+      return;
+    }
+
+    const result = await api('/org/confirm-serial-list', {
+      method: 'POST',
+      body: JSON.stringify({ serials })
+    });
+
+    setMessage(`Liste traitée: ${result.matched} trouvé(s) dans l'inventaire, ${result.created} ajouté(s) manuellement.`);
+    setShowCsvModal(false);
+    setCsvHeaders([]);
+    setCsvRows([]);
+    setSerialColumn('');
+    setCsvError('');
+    await load(page, pageSize);
+  };
+
   return (
     <AppShell contentClassName="main-content-wide">
       <section className="hero">
@@ -128,6 +200,7 @@ export function OrgDashboard() {
           <button className="button secondary" onClick={resumeValidation} disabled={!canResume}>Remettre en cours de validation</button>
           <button className="button secondary" onClick={saveProgress} disabled={isLocked}>Sauvegarder la progression</button>
           <button className="button secondary" onClick={() => load(page, pageSize)}>Actualiser</button>
+          <button className="button secondary ml-auto" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked}>Charger une liste</button>
           <span className="badge">{total} actifs</span>
         </div>
 
@@ -160,6 +233,31 @@ export function OrgDashboard() {
         <section className="panel">
           <p>{message}</p>
         </section>
+      )}
+
+      {showCsvModal && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Charger une liste CSV">
+            <h3>Charger une liste CSV</h3>
+            <p>Importez un fichier CSV puis sélectionnez la colonne contenant les numéros de série.</p>
+            <input className="input" type="file" accept=".csv,text/csv" onChange={(e) => onCsvFile(e.target.files?.[0])} />
+            {!!csvHeaders.length && (
+              <label className="stack">
+                Colonne numéro de série
+                <select className="input" value={serialColumn} onChange={(e) => setSerialColumn(e.target.value)}>
+                  {csvHeaders.map((header) => (
+                    <option key={header} value={header}>{header}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {csvError && <p>{csvError}</p>}
+            <div className="button-row">
+              <button className="button" type="button" onClick={submitCsvList} disabled={!csvRows.length}>Soumettre la liste</button>
+              <button className="button secondary" type="button" onClick={() => setShowCsvModal(false)}>Fermer</button>
+            </div>
+          </section>
+        </div>
       )}
     </AppShell>
   );
