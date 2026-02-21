@@ -1,0 +1,199 @@
+:root {
+  --cisco-blue-900: #0a2540;
+  --cisco-blue-700: #005073;
+  --cisco-blue-500: #00bceb;
+  --cisco-slate-900: #1f2a36;
+  --cisco-slate-700: #455468;
+  --cisco-slate-100: #edf2f7;
+  --cisco-white: #ffffff;
+  --success: #1f9d55;
+  --warning: #ca8a04;
+  --radius: 14px;
+  --shadow: 0 18px 36px rgba(15, 35, 54, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  background: linear-gradient(150deg, #f6fafd 10%, #e8f3fb 45%, #f5f8fb 100%);
+  color: var(--cisco-slate-900);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-shell {
+  min-height: 100vh;
+}
+
+.top-nav {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  background: linear-gradient(100deg, var(--cisco-blue-900), #07304a);
+  color: var(--cisco-white);
+  box-shadow: 0 10px 26px rgba(5, 20, 33, 0.3);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-mark {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: flex-end;
+}
+
+.brand-mark span {
+  width: 4px;
+  background: var(--cisco-blue-500);
+  border-radius: 4px;
+}
+
+.brand-mark span:nth-child(1) { height: 12px; }
+.brand-mark span:nth-child(2) { height: 18px; }
+.brand-mark span:nth-child(3) { height: 24px; }
+.brand-mark span:nth-child(4) { height: 32px; }
+.brand-mark span:nth-child(5) { height: 24px; }
+.brand-mark span:nth-child(6) { height: 18px; }
+.brand-mark span:nth-child(7) { height: 12px; }
+
+.brand strong {
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.4rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.main-content {
+  max-width: 1140px;
+  margin: 2rem auto;
+  padding: 0 1.25rem 2rem;
+}
+
+.hero {
+  background: var(--cisco-white);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+  border-left: 6px solid var(--cisco-blue-500);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.hero p {
+  margin: 0.5rem 0 0;
+  color: var(--cisco-slate-700);
+}
+
+.panel {
+  background: var(--cisco-white);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.input,
+button,
+select {
+  font: inherit;
+}
+
+.input {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #cfdae7;
+  border-radius: 10px;
+  background: #fdfefe;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--cisco-blue-500);
+  box-shadow: 0 0 0 3px rgba(0, 188, 235, 0.2);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  background: var(--cisco-blue-700);
+  color: var(--cisco-white);
+  cursor: pointer;
+}
+
+.button.secondary {
+  background: #e6eef6;
+  color: var(--cisco-blue-900);
+}
+
+.button.success {
+  background: var(--success);
+}
+
+.button.warning {
+  background: var(--warning);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid #e7edf4;
+}
+
+th {
+  color: var(--cisco-slate-700);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: #e9f7fc;
+  color: #03516a;
+  font-size: 0.8rem;
+}

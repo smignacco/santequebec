@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginOrg } from './pages/LoginOrg';
 import { OrgDashboard } from './pages/OrgDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
