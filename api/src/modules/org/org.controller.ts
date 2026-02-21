@@ -9,6 +9,16 @@ export class OrgController {
   private assertOrg(req: any) { if (req.user?.role !== 'ORG_USER') throw new UnauthorizedException(); }
   private static readonly MANUAL_EDITABLE_FIELDS = ['serial', 'serialNumber', 'productId', 'productDescription'] as const;
 
+  private ensureInventoryEditable(inventoryFile: { isLocked: boolean; status: string }) {
+    if (inventoryFile.isLocked) {
+      throw new UnauthorizedException('Inventaire verrouillé par un administrateur.');
+    }
+
+    if (inventoryFile.status === 'CONFIRMED') {
+      throw new UnauthorizedException('Inventaire soumis. Utilisez "Remettre en cours de validation" pour modifier.');
+    }
+  }
+
   private getAuditContext(req: any) {
     const forwardedFor = req.headers?.['x-forwarded-for'];
     const ip = typeof forwardedFor === 'string'
@@ -74,7 +84,10 @@ export class OrgController {
     });
 
     const canUpdateIds = items
-      .filter((item) => item.inventoryFile.organizationId === req.user.organizationId && !item.inventoryFile.isLocked)
+      .filter((item) => {
+        if (item.inventoryFile.organizationId !== req.user.organizationId) return false;
+        return !item.inventoryFile.isLocked && item.inventoryFile.status !== 'CONFIRMED';
+      })
       .map((item) => item.id);
 
     if (!canUpdateIds.length) {
@@ -106,7 +119,7 @@ export class OrgController {
     this.assertOrg(req);
     const oldItem = await this.prisma.inventoryItem.findUniqueOrThrow({ where: { id }, include: { inventoryFile: true } });
     if (oldItem.inventoryFile.organizationId !== req.user.organizationId) throw new UnauthorizedException();
-    if (oldItem.inventoryFile.isLocked) throw new UnauthorizedException('Inventaire verrouillé par un administrateur.');
+    this.ensureInventoryEditable(oldItem.inventoryFile);
     const item = await this.prisma.inventoryItem.update({ where: { id }, data: { status: body.status, notes: body.notes } });
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_ITEM', scopeId: id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ITEM_STATUS_CHANGED', detailsJson: JSON.stringify({ old: oldItem, new: item }) } });
     return item;
@@ -121,7 +134,7 @@ export class OrgController {
     this.assertOrg(req);
     const oldItem = await this.prisma.inventoryItem.findUniqueOrThrow({ where: { id }, include: { inventoryFile: true } });
     if (oldItem.inventoryFile.organizationId !== req.user.organizationId) throw new UnauthorizedException();
-    if (oldItem.inventoryFile.isLocked) throw new UnauthorizedException('Inventaire verrouillé par un administrateur.');
+    this.ensureInventoryEditable(oldItem.inventoryFile);
     if (!oldItem.manualEntry) throw new UnauthorizedException('Seuls les items ajoutés manuellement sont modifiables.');
 
     const normalize = (value?: string) => {
@@ -165,7 +178,7 @@ export class OrgController {
     this.assertOrg(req);
 
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({
-      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED', 'CONFIRMED'] }, isLocked: false },
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] }, isLocked: false },
       orderBy: { importedAt: 'desc' }
     });
 
@@ -213,6 +226,17 @@ export class OrgController {
       where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] }, isLocked: false },
       orderBy: { importedAt: 'desc' }
     });
+    const unvalidatedCount = await this.prisma.inventoryItem.count({
+      where: {
+        inventoryFileId: inv.id,
+        status: { notIn: ['CONFIRMED', 'TO_BE_REMOVED'] }
+      }
+    });
+
+    if (unvalidatedCount > 0) {
+      throw new UnauthorizedException('Tous les éléments doivent être validés avant la soumission.');
+    }
+
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'CONFIRMED' } });
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
     return file;
@@ -235,7 +259,7 @@ export class OrgController {
     this.assertOrg(req);
 
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({
-      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED', 'CONFIRMED'] }, isLocked: false },
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] }, isLocked: false },
       orderBy: { importedAt: 'desc' }
     });
 

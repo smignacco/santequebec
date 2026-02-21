@@ -62,7 +62,7 @@ export function OrgDashboard() {
 
   const saveProgress = async () => {
     await load(page, pageSize);
-    setMessage('Progression sauvegardée. Vous pouvez reprendre plus tard.');
+    setMessage('Statut: progression sauvegardée. Vous pouvez reprendre plus tard.');
   };
 
   const addManualItem = async () => {
@@ -92,13 +92,13 @@ export function OrgDashboard() {
 
   const submit = async () => {
     await api('/org/submit', { method: 'POST' });
-    setMessage('La liste a été validée et soumise correctement.');
+    setMessage('Statut: la liste a été validée et soumise correctement.');
     await load(page, pageSize);
   };
 
   const resumeValidation = async () => {
     await api('/org/resume-validation', { method: 'POST' });
-    setMessage('La liste est remise en cours de validation. Vous pouvez faire des ajustements.');
+    setMessage('Statut: la liste est remise en cours de validation. Vous pouvez faire des ajustements.');
     await load(page, pageSize);
   };
 
@@ -106,7 +106,8 @@ export function OrgDashboard() {
   const confirmed = data.confirmed || 0;
   const fileStatus = data.fileStatus || '';
   const isLocked = Boolean(data.isLocked);
-  const canSubmit = fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED';
+  const allItemsValidated = total > 0 && confirmed === total;
+  const canSubmit = (fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED') && allItemsValidated;
   const canResume = fileStatus === 'CONFIRMED' && !isLocked;
   const completion = total ? Math.round((confirmed / total) * 100) : 0;
   const effectivePageSize = pageSize === ALL_PAGE_SIZE ? Math.max(total, 1) : pageSize;
@@ -294,13 +295,18 @@ export function OrgDashboard() {
           <button className="button" onClick={submit} disabled={!canSubmit || isLocked}>Soumettre l&apos;inventaire</button>
           <button className="button secondary" onClick={resumeValidation} disabled={!canResume}>Remettre en cours de validation</button>
           <button className="button secondary" onClick={saveProgress} disabled={isLocked}>Sauvegarder la progression</button>
-          <button className="button secondary" onClick={() => load(page, pageSize)}>Actualiser</button>
-          <button className="button secondary ml-auto" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked}>Charger une liste</button>
-          <span className="badge">{total} actifs</span>
-        </div>
-
-        <div className="button-row">
-          <button className="button secondary" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
+          <button
+            className="button secondary"
+            onClick={async () => {
+              await load(page, pageSize);
+              setMessage('Statut: inventaire actualisé.');
+            }}
+          >
+            Actualiser
+          </button>
+          <button className="button secondary ml-auto" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
+          <button className="button secondary" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked}>Chager .csv</button>
+          <span className="badge badge-centered">{total} actifs</span>
         </div>
 
         <div className="table-toolbar">
