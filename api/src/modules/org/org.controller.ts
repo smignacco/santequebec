@@ -22,11 +22,12 @@ export class OrgController {
       where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED'] } },
       orderBy: { importedAt: 'desc' }
     });
-    if (!file) return { total: 0, items: [], visibleColumns: [] };
+    if (!file) return { total: 0, confirmed: 0, items: [], visibleColumns: [] };
     const where: any = { inventoryFileId: file.id };
     if (status) where.status = status;
     if (q) where.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
     const total = await this.prisma.inventoryItem.count({ where });
+    const confirmed = await this.prisma.inventoryItem.count({ where: { ...where, status: 'CONFIRMED' } });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
 
     let visibleColumns: string[] = [];
@@ -41,7 +42,7 @@ export class OrgController {
       }
     }
 
-    return { total, page: p, pageSize: ps, items, visibleColumns };
+    return { total, confirmed, page: p, pageSize: ps, items, visibleColumns };
   }
 
   @Patch('items/:id')
