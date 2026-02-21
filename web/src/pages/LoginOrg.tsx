@@ -37,7 +37,7 @@ export function LoginOrg() {
   return (
     <div className="page-shell">
       <main className="main-content">
-        <section className="hero">
+        <section className="hero login-hero">
           <div className="login-brand">
             <img
               className="login-brand-logo"
@@ -51,14 +51,30 @@ export function LoginOrg() {
           </div>
         </section>
 
-        <section className="panel stack">
-          <div className="button-row">
-            <button className={`button ${mode === 'ORG' ? '' : 'secondary'}`} type="button" onClick={() => setMode('ORG')}>Connexion organisation</button>
-            <button className={`button ${mode === 'ADMIN' ? '' : 'secondary'}`} type="button" onClick={() => setMode('ADMIN')}>Connexion admin</button>
+        <section className="panel stack login-panel">
+          <div className="login-tabs" role="tablist" aria-label="Modes de connexion">
+            <button
+              className={`login-tab ${mode === 'ORG' ? 'is-active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === 'ORG'}
+              onClick={() => setMode('ORG')}
+            >
+              Connexion Établissement
+            </button>
+            <button
+              className={`login-tab ${mode === 'ADMIN' ? 'is-active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === 'ADMIN'}
+              onClick={() => setMode('ADMIN')}
+            >
+              Connexion Administration
+            </button>
           </div>
 
           {mode === 'ORG' ? (
-            <form onSubmit={submitOrg} className="stack">
+            <form onSubmit={submitOrg} className="stack" role="tabpanel">
               <input className="input" placeholder="Code organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} required />
               <input className="input" type="password" placeholder="NIP" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
               <input className="input" placeholder="Nom complet" value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} required />
@@ -66,7 +82,7 @@ export function LoginOrg() {
               <button className="button" type="submit">Accéder à mon inventaire</button>
             </form>
           ) : (
-            <form onSubmit={submitAdmin} className="stack">
+            <form onSubmit={submitAdmin} className="stack" role="tabpanel">
               <input className="input" placeholder="Identifiant admin" value={adminForm.username} onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })} required />
               <input className="input" placeholder="Mot de passe admin" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required />
               <button className="button" type="submit">Accéder à l&apos;administration</button>

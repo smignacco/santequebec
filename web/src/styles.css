@@ -89,6 +89,13 @@ a {
 }
 
 
+
+.login-hero {
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .login-brand {
   display: flex;
   align-items: center;
@@ -168,6 +175,42 @@ select {
   box-shadow: 0 0 0 3px rgba(0, 188, 235, 0.2);
 }
 
+
+.login-panel {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  padding: 0.35rem;
+  border-radius: 12px;
+  background: #eef4fa;
+}
+
+.login-tab {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  background: transparent;
+  color: var(--cisco-slate-700);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-tab:hover {
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--cisco-blue-900);
+}
+
+.login-tab.is-active {
+  background: var(--cisco-white);
+  color: var(--cisco-blue-900);
+  box-shadow: 0 2px 8px rgba(15, 35, 54, 0.14);
+}
 .button-row {
   display: flex;
   flex-wrap: wrap;
