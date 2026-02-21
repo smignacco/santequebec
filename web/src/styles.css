@@ -161,6 +161,10 @@ select {
   gap: 0.7rem;
 }
 
+.ml-auto {
+  margin-left: auto;
+}
+
 .button {
   border: 0;
   border-radius: 10px;
@@ -284,4 +288,25 @@ th {
   font: inherit;
   cursor: pointer;
   padding: 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 20, 33, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 1rem;
+}
+
+.modal {
+  width: min(620px, 100%);
+  background: var(--cisco-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.9rem;
 }
