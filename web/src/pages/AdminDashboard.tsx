@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
@@ -8,6 +8,11 @@ export function AdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [message, setMessage] = useState('');
   const [view, setView] = useState<AdminView>('CREATE');
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedFileId, setSelectedFileId] = useState('');
+  const [details, setDetails] = useState<any | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [columnFilter, setColumnFilter] = useState('ALL');
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', pin: '' });
   const [uploadOrgId, setUploadOrgId] = useState('');
@@ -22,6 +27,22 @@ export function AdminDashboard() {
   useEffect(() => {
     loadOrgs().catch(() => setMessage('Impossible de charger la liste des organisations.'));
   }, []);
+
+  const loadOrgDetails = async (orgId: string) => {
+    const data = await api(`/admin/orgs/${orgId}/details`);
+    setDetails(data);
+    setSelectedOrgId(orgId);
+    setSelectedFileId('');
+    setInventoryItems([]);
+    setColumnFilter('ALL');
+  };
+
+  const loadInventory = async (fileId: string) => {
+    const items = await api(`/admin/inventory-files/${fileId}/items`);
+    setSelectedFileId(fileId);
+    setInventoryItems(items);
+    setColumnFilter('ALL');
+  };
 
   const createOrg = async (e: FormEvent) => {
     e.preventDefault();
@@ -88,15 +109,47 @@ export function AdminDashboard() {
     setXlsx(null);
     setUploadOrgId('');
     setMessage(`Inventaire téléversé avec succès (${out.rowCount} lignes).`);
+    await loadOrgDetails(uploadOrgId);
+  };
+
+  const publishInventory = async () => {
+    if (!selectedFileId) return;
+    await api(`/admin/inventory-files/${selectedFileId}/publish`, { method: 'PATCH' });
+    setMessage('Inventaire publié pour validation par l\'organisation.');
+    if (selectedOrgId) await loadOrgDetails(selectedOrgId);
+  };
+
+  const removeItem = async (itemId: string) => {
+    await api(`/admin/inventory-items/${itemId}`, { method: 'DELETE' });
+    if (selectedFileId) {
+      await loadInventory(selectedFileId);
+    }
   };
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
+
+  const availableColumns = useMemo(() => {
+    const all = new Set<string>();
+    inventoryItems.forEach((item) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (!['id', 'inventoryFileId', 'updatedAt'].includes(key) && value) {
+          all.add(key);
+        }
+      });
+    });
+    return ['ALL', ...Array.from(all)];
+  }, [inventoryItems]);
+
+  const filteredItems = useMemo(() => {
+    if (columnFilter === 'ALL') return inventoryItems;
+    return inventoryItems.filter((item) => Boolean(item[columnFilter]));
+  }, [inventoryItems, columnFilter]);
 
   return (
     <AppShell>
       <section className="hero">
         <h1>Administration</h1>
-        <p>Gestion des organisations et téléversement d&apos;inventaire.</p>
+        <p>Gestion des organisations, inventaires et publication pour validation.</p>
       </section>
 
       <section className="panel stack">
@@ -138,7 +191,9 @@ export function AdminDashboard() {
               <tbody>
                 {orgs.map((o) => (
                   <tr key={o.id}>
-                    <td>{o.orgCode}</td>
+                    <td>
+                      <button className="link-button" type="button" onClick={() => loadOrgDetails(o.id)}>{o.orgCode}</button>
+                    </td>
                     <td>{o.regionCode}</td>
                     <td>{o.displayName}</td>
                     <td>
@@ -160,6 +215,74 @@ export function AdminDashboard() {
               <div className="button-row">
                 <button className="button" type="button" onClick={importInventory}>Charger le fichier</button>
                 <button className="button secondary" type="button" onClick={() => setUploadOrgId('')}>Annuler</button>
+              </div>
+            </section>
+          )}
+
+          {details && (
+            <section className="panel stack">
+              <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
+              <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
+              <h4>Inventaires chargés</h4>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nom</th>
+                      <th>Statut</th>
+                      <th>Total</th>
+                      <th>Confirmés</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {details.inventoryFiles.map((f: any) => (
+                      <tr key={f.id}>
+                        <td><button className="link-button" type="button" onClick={() => loadInventory(f.id)}>{f.name}</button></td>
+                        <td>{f.status}</td>
+                        <td>{f.rowCount}</td>
+                        <td>{f.confirmedCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {selectedFileId && (
+            <section className="panel stack">
+              <div className="button-row">
+                <h3>Détails de l&apos;inventaire</h3>
+                <select className="input" value={columnFilter} onChange={(e) => setColumnFilter(e.target.value)}>
+                  {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
+                </select>
+                <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Asset</th>
+                      <th>Serial</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.rowNumber}</td>
+                        <td>{item.assetTag}</td>
+                        <td>{item.serial}</td>
+                        <td>{item.status}</td>
+                        <td>
+                          <button className="button danger" type="button" onClick={() => removeItem(item.id)}>Retirer</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           )}

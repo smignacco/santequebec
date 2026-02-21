@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as argon2 from 'argon2';
 import { createHash, randomInt } from 'crypto';
@@ -22,6 +22,49 @@ export class AdminController {
 
   @Get('orgs')
   listOrgs(@Req() req: any) { this.assertAdmin(req); return this.prisma.organization.findMany({ include: { organizationType: true } }); }
+
+  @Get('orgs/:orgId/details')
+  async orgDetails(@Req() req: any, @Param('orgId') orgId: string) {
+    this.assertAdmin(req);
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId }, include: { organizationType: true } });
+    const inventoryFiles = await this.prisma.inventoryFile.findMany({
+      where: { organizationId: orgId },
+      include: { batch: true, items: true },
+      orderBy: { importedAt: 'desc' }
+    });
+
+    return {
+      org,
+      inventoryFiles: inventoryFiles.map((file: any) => ({
+        id: file.id,
+        name: file.batch?.name || file.sourceFilename,
+        status: file.status,
+        rowCount: file.rowCount,
+        importedAt: file.importedAt,
+        confirmedCount: file.items.filter((item: any) => item.status === 'CONFIRMED').length,
+        pendingCount: file.items.filter((item: any) => item.status === 'PENDING').length
+      }))
+    };
+  }
+
+  @Get('inventory-files/:fileId/items')
+  async inventoryItems(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+    return this.prisma.inventoryItem.findMany({ where: { inventoryFileId: fileId }, orderBy: { rowNumber: 'asc' } });
+  }
+
+  @Patch('inventory-files/:fileId/publish')
+  async publishInventory(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+    return this.prisma.inventoryFile.update({ where: { id: fileId }, data: { status: 'PUBLISHED' } });
+  }
+
+  @Delete('inventory-items/:itemId')
+  async removeInventoryItem(@Req() req: any, @Param('itemId') itemId: string) {
+    this.assertAdmin(req);
+    await this.prisma.inventoryItem.delete({ where: { id: itemId } });
+    return { ok: true };
+  }
 
 
   @Post('orgs')
@@ -95,7 +138,6 @@ export class AdminController {
           site: pick(['site']),
           location: pick(['location', 'emplacement']),
           notes: pick(['notes', 'note']),
-          instanceNumber: pick(['instancenumber']),
           serialNumber,
           productId: pick(['productid']),
           productDescription,
