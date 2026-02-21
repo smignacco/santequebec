@@ -74,6 +74,11 @@ a {
   padding: 0 1.25rem 2rem;
 }
 
+
+.main-content-wide {
+  max-width: 96vw;
+}
+
 .hero {
   background: var(--cisco-white);
   border-radius: var(--radius);
@@ -157,23 +162,44 @@ select {
   overflow-x: auto;
 }
 
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rows-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.5rem;
+  font-size: 0.86rem;
 }
 
 th,
 td {
   text-align: left;
-  padding: 0.75rem 0.6rem;
+  padding: 0.55rem 0.45rem;
   border-bottom: 1px solid #e7edf4;
 }
 
 th {
   color: var(--cisco-slate-700);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
 }
 
 .badge {

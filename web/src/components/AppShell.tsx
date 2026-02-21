@@ -2,7 +2,7 @@ import { PropsWithChildren } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clearToken, getCurrentRole } from '../auth';
 
-export function AppShell({ children }: PropsWithChildren) {
+export function AppShell({ children, contentClassName }: PropsWithChildren<{ contentClassName?: string }>) {
   const role = getCurrentRole();
   const navigate = useNavigate();
 
@@ -28,7 +28,7 @@ export function AppShell({ children }: PropsWithChildren) {
           <button className="button secondary" type="button" onClick={logout}>Déconnexion</button>
         </nav>
       </header>
-      <main className="main-content">{children}</main>
+      <main className={`main-content ${contentClassName || ''}`.trim()}>{children}</main>
     </div>
   );
 }
