@@ -68,6 +68,51 @@ oc apply -f openshift/
    ```
 3. Garder `replicas: 1` (SQLite + volume RWO).
 
+### Dépannage build d'image (clusters sans registre intégré)
+Sur certains clusters, le registre intégré OpenShift n'est pas configuré pour les projets applicatifs. Dans ce cas, un build binaire avec sortie vers `ImageStreamTag` échoue avec une erreur du type:
+
+- `InvalidOutputReference`
+- `an image stream cannot be used as build output because the integrated container image registry is not configured`
+
+#### Procédure recommandée (push vers registre externe Docker Hub/Quay)
+1. Créer le build binaire Docker:
+   ```bash
+   oc project santequebec
+   oc new-build --name=santequebec --binary --strategy=docker
+   ```
+2. Créer un secret docker pour pousser l'image:
+   ```bash
+   oc create secret docker-registry regcred \
+     --docker-server=docker.io \
+     --docker-username=<USER> \
+     --docker-password=<TOKEN_OU_PASSWORD> \
+     --docker-email=<EMAIL>
+   ```
+3. Configurer la sortie du BuildConfig vers une image externe:
+   ```bash
+   oc patch bc santequebec --type=merge -p \
+   '{"spec":{"output":{"to":{"kind":"DockerImage","name":"docker.io/<USER>/santequebec:latest"}}}}'
+   oc set build-secret --push bc/santequebec regcred
+   ```
+4. Lancer le build puis suivre les logs:
+   ```bash
+   oc start-build santequebec --from-dir=. --follow
+   oc get builds -w
+   ```
+5. Mettre à jour le deployment pour utiliser l'image externe:
+   ```bash
+   oc set image deployment/santequebec app=docker.io/<USER>/santequebec:latest
+   oc rollout status deployment/santequebec
+   ```
+
+#### Diagnostic rapide si `--follow` time out
+```bash
+oc describe build santequebec-<N>
+oc get events --sort-by=.lastTimestamp | tail -n 100
+oc get bc santequebec -o yaml
+oc get resourcequota,limitrange -n santequebec
+```
+
 ## Notes MVP
 - Auth org par `orgCode + PIN + name + email`; JWT role `ORG_USER`.
 - Auth admin via env + hash argon2.
