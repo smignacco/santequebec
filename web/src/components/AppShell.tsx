@@ -16,10 +16,10 @@ export function AppShell({ children, contentClassName }: PropsWithChildren<{ con
         <div className="brand">
           <img
             className="brand-logo"
-            src="https://companieslogo.com/img/orig/CSCO.D-2114e564.png?t=1728111511"
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/1280px-Cisco_logo_blue_2016.svg.png"
             alt="Cisco logo"
           />
-          <strong>Santé Québec - Portail de validation de l'inventaire Cisco des établissements.</strong>
+          <strong>Cisco - Validation de l'inventaire d'un établissement</strong>
         </div>
         <nav className="nav-links">
           <button className="button secondary" type="button" onClick={logout}>Déconnexion</button>
