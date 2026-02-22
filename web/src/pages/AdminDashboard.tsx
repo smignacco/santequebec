@@ -25,6 +25,7 @@ export function AdminDashboard() {
   const [xlsx, setXlsx] = useState<File | null>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
+  const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -36,8 +37,13 @@ export function AdminDashboard() {
     setAdminUsers(data);
   };
 
+  const loadAppSettings = async () => {
+    const data = await api('/admin/app-settings');
+    setWelcomeVideoUrlDraft(data?.welcomeVideoUrl || '');
+  };
+
   useEffect(() => {
-    Promise.all([loadOrgs(), loadAdminUsers()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
+    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
 
   const loadOrgDetails = async (orgId: string) => {
@@ -209,6 +215,16 @@ export function AdminDashboard() {
     setPinDraft('');
     setMessage("NIP de l'organisation mis à jour.");
   };
+  const updateWelcomeVideoUrl = async () => {
+    await api('/admin/app-settings/welcome-video-url', {
+      method: 'PATCH',
+      body: JSON.stringify({ welcomeVideoUrl: welcomeVideoUrlDraft.trim() || null })
+    });
+    setMessage('URL de la vidéo explicative mise à jour.');
+    await loadAppSettings();
+  };
+
+
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
 
@@ -291,6 +307,24 @@ export function AdminDashboard() {
           <button className={`button ${view === 'ADMINS' ? '' : 'secondary'}`} type="button" onClick={() => setView('ADMINS')}>
             Administrateurs
           </button>
+        </div>
+      </section>
+
+
+      <section className="panel stack">
+        <h3>Paramètres globaux</h3>
+        <label className="stack">
+          URL de la vidéo explicative
+          <input
+            className="input"
+            type="url"
+            placeholder="https://..."
+            value={welcomeVideoUrlDraft}
+            onChange={(e) => setWelcomeVideoUrlDraft(e.target.value)}
+          />
+        </label>
+        <div className="button-row">
+          <button className="button" type="button" onClick={updateWelcomeVideoUrl}>Enregistrer la vidéo explicative</button>
         </div>
       </section>
 

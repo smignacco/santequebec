@@ -46,6 +46,30 @@ export class AdminController {
     });
   }
 
+
+  @Get('app-settings')
+  async getAppSettings(@Req() req: any) {
+    this.assertAdmin(req);
+    const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
+    return { welcomeVideoUrl: settings?.welcomeVideoUrl || '' };
+  }
+
+  @Patch('app-settings/welcome-video-url')
+  async updateWelcomeVideoUrl(@Req() req: any, @Body() body: { welcomeVideoUrl?: string | null }) {
+    this.assertAdmin(req);
+    const welcomeVideoUrl = typeof body.welcomeVideoUrl === 'string' && body.welcomeVideoUrl.trim()
+      ? body.welcomeVideoUrl.trim()
+      : null;
+
+    const settings = await this.prisma.appSettings.upsert({
+      where: { id: 'global' },
+      update: { welcomeVideoUrl },
+      create: { id: 'global', welcomeVideoUrl }
+    });
+
+    return { welcomeVideoUrl: settings.welcomeVideoUrl || '' };
+  }
+
   @Get('org-types')
   listTypes(@Req() req: any) { this.assertAdmin(req); return this.prisma.organizationType.findMany(); }
   @Post('org-types')

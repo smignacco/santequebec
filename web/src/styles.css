@@ -92,7 +92,6 @@ a {
 
 .login-hero {
   max-width: 640px;
-  margin-left: auto;
   margin-right: auto;
 }
 
@@ -126,11 +125,16 @@ a {
   flex-wrap: wrap;
 }
 
+.hero-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .teams-help-button {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  margin-left: auto;
 }
 
 .teams-logo {
@@ -217,10 +221,6 @@ select {
   gap: 0.7rem;
 }
 
-.ml-auto {
-  margin-left: auto;
-}
-
 .button {
   border: 0;
   border-radius: 10px;
@@ -228,6 +228,12 @@ select {
   background: var(--cisco-blue-700);
   color: var(--cisco-white);
   cursor: pointer;
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .button.secondary {

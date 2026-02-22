@@ -38,6 +38,33 @@ export class OrgController {
     return this.prisma.organization.findUnique({ where: { id: req.user.organizationId }, include: { organizationType: true } });
   }
 
+
+  @Get('welcome-video')
+  async welcomeVideo(@Req() req: any) {
+    this.assertOrg(req);
+    const [org, settings] = await Promise.all([
+      this.prisma.organization.findUniqueOrThrow({ where: { id: req.user.organizationId } }),
+      this.prisma.appSettings.findUnique({ where: { id: 'global' } })
+    ]);
+
+    return {
+      welcomeVideoUrl: settings?.welcomeVideoUrl || '',
+      dismissed: Boolean(org.welcomeVideoDismissed)
+    };
+  }
+
+  @Patch('welcome-video/dismiss')
+  async dismissWelcomeVideo(@Req() req: any, @Body() body: { dismissed?: boolean }) {
+    this.assertOrg(req);
+    const dismissed = body.dismissed !== false;
+    await this.prisma.organization.update({
+      where: { id: req.user.organizationId },
+      data: { welcomeVideoDismissed: dismissed }
+    });
+
+    return { dismissed };
+  }
+
   @Get('items')
   async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
     this.assertOrg(req);

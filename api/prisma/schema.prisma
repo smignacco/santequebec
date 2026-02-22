@@ -27,6 +27,7 @@ model Organization {
   regionCode         String
   displayName        String
   supportContactEmail String?
+  welcomeVideoDismissed Boolean        @default(false)
   isDrill            Boolean          @default(false)
   isActive           Boolean          @default(true)
   organizationTypeId String
@@ -35,6 +36,13 @@ model Organization {
   inventoryFiles     InventoryFile[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
+}
+
+model AppSettings {
+  id                  String   @id
+  welcomeVideoUrl     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Batch {
