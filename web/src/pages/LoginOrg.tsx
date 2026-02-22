@@ -36,13 +36,13 @@ export function LoginOrg() {
 
   return (
     <div className="page-shell">
-      <main className="main-content">
+      <main className="main-content login-main-content">
         <section className="hero login-hero">
           <div className="login-brand">
             <img
               className="login-brand-logo"
-              src="https://sante.quebec/inc/images/piv/qc-drapeau-sante-qc.svg"
-              alt="Logo Santé Québec"
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/1280px-Cisco_logo_blue_2016.svg.png"
+              alt="Logo Cisco"
             />
             <div>
               <h1>Gestion de l&apos;inventaire Cisco</h1>

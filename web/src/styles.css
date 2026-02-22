@@ -51,7 +51,7 @@ a {
 
 .brand-logo {
   display: block;
-  height: 32px;
+  height: 21px;
   width: auto;
   object-fit: contain;
 }
@@ -90,9 +90,15 @@ a {
 
 
 
+.login-main-content {
+  display: grid;
+  justify-items: center;
+  gap: 1.5rem;
+}
+
 .login-hero {
-  max-width: 640px;
-  margin-right: auto;
+  width: min(100%, 640px);
+  margin: 0;
 }
 
 .login-brand {
@@ -102,8 +108,8 @@ a {
 }
 
 .login-brand-logo {
-  width: 180px;
-  max-width: 40vw;
+  width: 105px;
+  max-width: 24vw;
   height: auto;
 }
 
@@ -181,8 +187,8 @@ select {
 
 
 .login-panel {
-  max-width: 640px;
-  margin: 0 auto;
+  width: min(100%, 640px);
+  margin: 0;
 }
 
 .login-tabs {
