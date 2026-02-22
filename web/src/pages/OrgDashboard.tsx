@@ -23,6 +23,9 @@ export function OrgDashboard() {
   const [manualSerialNumber, setManualSerialNumber] = useState('');
   const [manualProductId, setManualProductId] = useState('');
   const [manualProductDescription, setManualProductDescription] = useState('');
+  const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
 
   const load = (nextPage = page, nextPageSize = pageSize) => {
     const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
@@ -45,6 +48,19 @@ export function OrgDashboard() {
       .catch(() => {
         setOrgName('Organisation');
         setSupportContactEmail('');
+      });
+  }, []);
+
+  useEffect(() => {
+    api('/org/welcome-video')
+      .then((data) => {
+        const url = data?.welcomeVideoUrl || '';
+        setWelcomeVideoUrl(url);
+        setShowWelcomeModal(Boolean(url && !data?.dismissed));
+      })
+      .catch(() => {
+        setWelcomeVideoUrl('');
+        setShowWelcomeModal(false);
       });
   }, []);
 
@@ -246,6 +262,23 @@ export function OrgDashboard() {
     await load(page, pageSize);
   };
 
+  const openWelcomeVideo = () => {
+    if (!welcomeVideoUrl) return;
+    setDoNotShowAgain(false);
+    setShowWelcomeModal(true);
+  };
+
+  const closeWelcomeModal = async () => {
+    if (doNotShowAgain) {
+      await api('/org/welcome-video/dismiss', {
+        method: 'PATCH',
+        body: JSON.stringify({ dismissed: true })
+      });
+    }
+    setShowWelcomeModal(false);
+  };
+
+
   return (
     <AppShell contentClassName="main-content-wide">
       <section className="hero">
@@ -254,8 +287,12 @@ export function OrgDashboard() {
             <h1>Tableau de bord - {orgName}</h1>
             <p>Inventaire à valider item par item.</p>
           </div>
-          <a
-            className={`button secondary teams-help-button ${teamsHelpLink ? '' : 'is-disabled'}`}
+          <div className="hero-actions">
+            <button className="button secondary" type="button" onClick={openWelcomeVideo} disabled={!welcomeVideoUrl}>
+              Video Explicative
+            </button>
+            <a
+              className={`button secondary teams-help-button ${teamsHelpLink ? '' : 'is-disabled'}`}
             href={teamsHelpLink || undefined}
             target="_blank"
             rel="noreferrer"
@@ -276,7 +313,8 @@ export function OrgDashboard() {
               </svg>
             </span>
             Besoin d'aide
-          </a>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -346,6 +384,32 @@ export function OrgDashboard() {
         </section>
       )}
 
+
+
+      {showWelcomeModal && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Vidéo explicative de l'application">
+            <h3>Bienvenue</h3>
+            <p>Visionnez cette vidéo explicative pour découvrir les principales fonctionnalités de l'application.</p>
+            <div className="stack">
+              <iframe
+                title="Vidéo explicative"
+                src={welcomeVideoUrl}
+                style={{ width: '100%', minHeight: '320px', border: 0 }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+            <label className="link-button" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+              <input type="checkbox" checked={doNotShowAgain} onChange={(e) => setDoNotShowAgain(e.target.checked)} />
+              Ne plus afficher
+            </label>
+            <div className="button-row">
+              <button className="button" type="button" onClick={closeWelcomeModal}>Fermer</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {showManualModal && (
         <div className="modal-backdrop" role="presentation">
