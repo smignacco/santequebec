@@ -2,8 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: santequebec
+  labels:
+    app: santequebec
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: santequebec
@@ -13,32 +20,50 @@ spec:
         app: santequebec
     spec:
       containers:
-        - name: app
-          image: image-registry.openshift-image-registry.svc:5000/your-project/santequebec:latest
-          ports:
-            - containerPort: 8080
-          env:
-            - name: DATABASE_URL
-              value: file:/data/app.db
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: santequebec-secret
-                  key: jwtSecret
-            - name: ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: santequebec-secret
-                  key: adminUser
-            - name: ADMIN_PASS_HASH
-              valueFrom:
-                secretKeyRef:
-                  name: santequebec-secret
-                  key: adminPassHash
-          volumeMounts:
-            - name: data
-              mountPath: /data
+      - name: santequebec
+        image: containers.cisco.com/smignacc/santequebec:20260222
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - secretRef:
+            name: santequebec-env
+        volumeMounts:
+        - name: santequebec-data-vol
+          mountPath: /data
+      imagePullSecrets:
+      - name: ech-regcred
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: santequebec-data
+      - name: santequebec-data-vol
+        persistentVolumeClaim:
+          claimName: santequebec-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: santequebec
+  namespace: santequebec
+spec:
+  selector:
+    app: santequebec
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: santequebec
+  namespace: santequebec
+spec:
+  host: santequebec.cloudapps.cisco.com
+  to:
+    kind: Service
+    name: santequebec
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+~                                            
