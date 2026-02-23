@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, apiBlob } from '../api/client';
+import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { InventoryTable } from './InventoryTable';
+import { getToken } from '../auth';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200];
 const ALL_PAGE_SIZE = -1;
@@ -26,7 +27,6 @@ export function OrgDashboard() {
   const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
-  const [welcomeVideoBlobUrl, setWelcomeVideoBlobUrl] = useState('');
 
   const getResolvedWelcomeVideoUrl = () => {
     if (!welcomeVideoUrl) return null;
@@ -43,36 +43,6 @@ export function OrgDashboard() {
     return /\.mp4$/i.test(resolved.pathname)
       || resolved.pathname.startsWith('/uploads/welcome-video/')
       || resolved.pathname === '/api/org/welcome-video/file';
-  };
-
-  const isPotentialAppPage = () => {
-    const resolved = getResolvedWelcomeVideoUrl();
-    if (!resolved) return false;
-
-    if (resolved.origin !== window.location.origin) {
-      return false;
-    }
-
-    if (isDirectVideoFile()) {
-      return false;
-    }
-
-    return resolved.pathname === '/' || resolved.pathname.startsWith('/org') || resolved.pathname.startsWith('/admin');
-  };
-
-  const getResolvedWelcomeVideoUrl = () => {
-    if (!welcomeVideoUrl) return null;
-    try {
-      return new URL(welcomeVideoUrl, window.location.origin);
-    } catch {
-      return null;
-    }
-  };
-
-  const isDirectVideoFile = () => {
-    const resolved = getResolvedWelcomeVideoUrl();
-    if (!resolved) return false;
-    return /\.mp4$/i.test(resolved.pathname) || resolved.pathname.startsWith('/uploads/welcome-video/');
   };
 
   const isPotentialAppPage = () => {
@@ -127,34 +97,6 @@ export function OrgDashboard() {
       });
   }, []);
 
-  useEffect(() => {
-    if (!welcomeVideoUrl || welcomeVideoUrl !== '/api/org/welcome-video/file') {
-      setWelcomeVideoBlobUrl('');
-      return;
-    }
-
-    let isCancelled = false;
-    let objectUrl = '';
-
-    apiBlob('/org/welcome-video/file')
-      .then((blob) => {
-        if (isCancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setWelcomeVideoBlobUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setWelcomeVideoBlobUrl('');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [welcomeVideoUrl]);
 
   const patch = async (id: string, status: string) => {
     if (isLocked) return;
@@ -361,7 +303,10 @@ export function OrgDashboard() {
   };
 
   const isAuthenticatedWelcomeVideo = welcomeVideoUrl === '/api/org/welcome-video/file';
-  const resolvedWelcomeVideoSrc = isAuthenticatedWelcomeVideo ? welcomeVideoBlobUrl : welcomeVideoUrl;
+  const token = getToken();
+  const resolvedWelcomeVideoSrc = isAuthenticatedWelcomeVideo
+    ? (token ? `/api/org/welcome-video/file?access_token=${encodeURIComponent(token)}` : '')
+    : welcomeVideoUrl;
 
   const closeWelcomeModal = async () => {
     if (doNotShowAgain) {
@@ -494,12 +439,12 @@ export function OrgDashboard() {
                 </p>
               ) : isDirectVideoFile() ? (
                 resolvedWelcomeVideoSrc ? (
-                  <video controls style={{ width: '100%', minHeight: '320px' }}>
+                  <video controls preload="metadata" style={{ width: '100%', minHeight: '320px' }}>
                     <source src={resolvedWelcomeVideoSrc} type="video/mp4" />
                     Votre navigateur ne supporte pas la lecture vidéo.
                   </video>
                 ) : (
-                  <p>Chargement de la vidéo explicative...</p>
+                  <p>Impossible de charger la vidéo explicative. Veuillez vous reconnecter.</p>
                 )
               ) : (
                 <iframe

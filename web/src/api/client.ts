@@ -59,3 +59,4 @@ export async function apiBlob(path: string, init: RequestInit = {}) {
   if (!res.ok) throw new Error(await res.text());
   return res.blob();
 }
+
