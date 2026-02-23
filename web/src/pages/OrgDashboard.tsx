@@ -60,6 +60,36 @@ export function OrgDashboard() {
     return resolved.pathname === '/' || resolved.pathname.startsWith('/org') || resolved.pathname.startsWith('/admin');
   };
 
+  const getResolvedWelcomeVideoUrl = () => {
+    if (!welcomeVideoUrl) return null;
+    try {
+      return new URL(welcomeVideoUrl, window.location.origin);
+    } catch {
+      return null;
+    }
+  };
+
+  const isDirectVideoFile = () => {
+    const resolved = getResolvedWelcomeVideoUrl();
+    if (!resolved) return false;
+    return /\.mp4$/i.test(resolved.pathname) || resolved.pathname.startsWith('/uploads/welcome-video/');
+  };
+
+  const isPotentialAppPage = () => {
+    const resolved = getResolvedWelcomeVideoUrl();
+    if (!resolved) return false;
+
+    if (resolved.origin !== window.location.origin) {
+      return false;
+    }
+
+    if (isDirectVideoFile()) {
+      return false;
+    }
+
+    return resolved.pathname === '/' || resolved.pathname.startsWith('/org') || resolved.pathname.startsWith('/admin');
+  };
+
   const load = (nextPage = page, nextPageSize = pageSize) => {
     const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
       ? Math.max(data.total || 0, 1)
