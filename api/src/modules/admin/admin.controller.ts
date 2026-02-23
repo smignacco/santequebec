@@ -120,6 +120,24 @@ export class AdminController {
     });
   }
 
+  @Delete('inventory-files/:fileId')
+  async removeInventoryFile(@Req() req: any, @Param('fileId') fileId: string) {
+    this.assertAdmin(req);
+
+    const [deletedItems, deletedLogs, deletedFiles] = await this.prisma.$transaction([
+      this.prisma.inventoryItem.deleteMany({ where: { inventoryFileId: fileId } }),
+      this.prisma.auditLog.deleteMany({ where: { scope: 'INVENTORY_FILE', scopeId: fileId } }),
+      this.prisma.inventoryFile.deleteMany({ where: { id: fileId } })
+    ]);
+
+    return {
+      ok: deletedFiles.count > 0,
+      deletedInventoryFiles: deletedFiles.count,
+      deletedInventoryItems: deletedItems.count,
+      deletedAuditLogs: deletedLogs.count
+    };
+  }
+
   @Patch('inventory-files/:fileId/publish')
   async publishInventory(@Req() req: any, @Param('fileId') fileId: string, @Body() body: { visibleColumns?: string[] }) {
     this.assertAdmin(req);

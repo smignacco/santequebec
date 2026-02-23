@@ -191,6 +191,26 @@ export function AdminDashboard() {
     }
   };
 
+  const removeInventoryFile = async (fileId: string, inventoryName: string) => {
+    const confirmed = window.confirm(`Supprimer l'inventaire « ${inventoryName} » ? Cette action est irréversible.`);
+    if (!confirmed) return;
+
+    await api(`/admin/inventory-files/${fileId}`, { method: 'DELETE' });
+
+    if (selectedFileId === fileId) {
+      setSelectedFileId('');
+      setInventoryItems([]);
+      setInventoryAuditLogs([]);
+      setColumnFilter('ALL');
+    }
+
+    if (selectedOrgId) {
+      await loadOrgDetails(selectedOrgId);
+    }
+
+    setMessage(`Inventaire « ${inventoryName} » supprimé.`);
+  };
+
   const updateSupportContact = async () => {
     if (!selectedOrgId) return;
     await api(`/admin/orgs/${selectedOrgId}/support-contact`, {
@@ -498,6 +518,7 @@ export function AdminDashboard() {
                       <th>Total</th>
                       <th>Confirmés</th>
                       <th>Verrouillage</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -508,6 +529,9 @@ export function AdminDashboard() {
                         <td>{f.rowCount}</td>
                         <td>{f.confirmedCount}</td>
                         <td>{f.isLocked ? 'Verrouillé' : 'Déverrouillé'}</td>
+                        <td>
+                          <button className="button danger" type="button" onClick={() => removeInventoryFile(f.id, f.name)}>Supprimer</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
