@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: santequebec-postgres-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: santequebec
+  labels:
+    app: santequebec
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: santequebec
+  template:
+    metadata:
+      labels:
+        app: santequebec
+    spec:
+      containers:
+        - name: santequebec
+          image: containers.cisco.com/smignacc/santequebec:20260222
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: santequebec-env
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: santequebec-env
+          volumeMounts:
+            - name: santequebec-postgres-data-vol
+              mountPath: /var/lib/postgresql/data
+      imagePullSecrets:
+        - name: ech-regcred
+      volumes:
+        - name: santequebec-postgres-data-vol
+          persistentVolumeClaim:
+            claimName: santequebec-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: santequebec
+  namespace: santequebec
+spec:
+  selector:
+    app: santequebec
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: santequebec
+  namespace: santequebec
+spec:
+  host: santequebec.cloudapps.cisco.com
+  to:
+    kind: Service
+    name: santequebec
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: cae.cisco.com/v1
+kind: SSOAuthConfig
+metadata:
+  name: santequebec.cloudapps.cisco.com
+  namespace: santequebec
+spec:
+  provider:
+    idp: okta
+    sso: application
+    cors: application
+  contexts:
+    - context: /
+      contextMatch: prefix
+      policyType: public
