@@ -53,3 +53,9 @@ export function apiFormWithProgress(path: string, form: FormData, onProgress?: (
     xhr.send(form);
   });
 }
+
+export async function apiBlob(path: string, init: RequestInit = {}) {
+  const res = await fetch(`${API}${path}`, { ...init, headers: { ...authHeader(), ...(init.headers || {}) } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.blob();
+}

@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 
 @Controller('api/org')
 @UseGuards(JwtAuthGuard)
@@ -47,10 +49,46 @@ export class OrgController {
       this.prisma.appSettings.findUnique({ where: { id: 'global' } })
     ]);
 
+    const configuredUrl = settings?.welcomeVideoUrl || '';
+    const isUploadedFile = /^\/uploads\/welcome-video\/.+\.mp4(\?.*)?$/i.test(configuredUrl);
+
     return {
-      welcomeVideoUrl: settings?.welcomeVideoUrl || '',
+      welcomeVideoUrl: isUploadedFile ? '/api/org/welcome-video/file' : configuredUrl,
       dismissed: Boolean(org.welcomeVideoDismissed)
     };
+  }
+
+
+  @Get('welcome-video/file')
+  async welcomeVideoFile(@Req() req: any, @Res() res: any) {
+    this.assertOrg(req);
+
+    const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
+    const configuredUrl = settings?.welcomeVideoUrl || '';
+
+    let parsed: URL;
+    try {
+      parsed = new URL(configuredUrl, 'http://localhost');
+    } catch {
+      throw new NotFoundException('Vidéo explicative introuvable.');
+    }
+
+    const pathMatch = parsed.pathname.match(/^\/uploads\/welcome-video\/(welcome-video-[\w-]+\.mp4)$/i);
+    if (!pathMatch) {
+      throw new NotFoundException('Vidéo explicative introuvable.');
+    }
+
+    const filename = pathMatch[1];
+    const fullPath = join(process.cwd(), 'public', 'uploads', 'welcome-video', filename);
+
+    if (!existsSync(fullPath)) {
+      throw new NotFoundException('Vidéo explicative introuvable.');
+    }
+
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    const stream = createReadStream(fullPath);
+    stream.pipe(res);
   }
 
   @Patch('welcome-video/dismiss')
