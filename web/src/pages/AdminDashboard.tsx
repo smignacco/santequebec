@@ -458,7 +458,7 @@ export function AdminDashboard() {
             <div className="button-row">
               <input
                 className="input"
-                type="password"
+                type="text"
                 placeholder="NIP (max 9 caractères, minuscules, sans caractères spéciaux)"
                 value={orgForm.pin}
                 onChange={(e) => setOrgForm({ ...orgForm, pin: sanitizeOrgPin(e.target.value) })}
