@@ -4,6 +4,20 @@ import { AppShell } from '../components/AppShell';
 
 type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
 
+const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const ORG_PIN_MAX_LENGTH = 9;
+
+const sanitizeOrgPin = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, ORG_PIN_MAX_LENGTH);
+
+const generateRandomOrgPin = () => {
+  let generatedPin = '';
+  for (let i = 0; i < ORG_PIN_MAX_LENGTH; i += 1) {
+    const randomIndex = Math.floor(Math.random() * ORG_PIN_ALLOWED_CHARS.length);
+    generatedPin += ORG_PIN_ALLOWED_CHARS[randomIndex];
+  }
+  return generatedPin;
+};
+
 export function AdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [message, setMessage] = useState('');
@@ -117,7 +131,7 @@ export function AdminDashboard() {
 
     await api(`/admin/batches/${createdBatch.id}/orgs/${createdOrg.id}/access-pin`, {
       method: 'POST',
-      body: JSON.stringify({ pin: orgForm.pin })
+      body: JSON.stringify({ pin: sanitizeOrgPin(orgForm.pin) })
     });
 
     setOrgForm({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
@@ -131,6 +145,10 @@ export function AdminDashboard() {
     setBatchName('');
     setXlsx(null);
     setMessage('');
+  };
+
+  const generateOrgPin = () => {
+    setOrgForm((current) => ({ ...current, pin: generateRandomOrgPin() }));
   };
 
   const importInventory = async () => {
@@ -415,7 +433,18 @@ export function AdminDashboard() {
             <input className="input" placeholder="Code Region" value={orgForm.regionCode} onChange={(e) => setOrgForm({ ...orgForm, regionCode: e.target.value })} required />
             <input className="input" placeholder="Nom affiché" value={orgForm.displayName} onChange={(e) => setOrgForm({ ...orgForm, displayName: e.target.value })} required />
             <input className="input" type="email" placeholder="Courriel contact support (MS Teams)" value={orgForm.supportContactEmail} onChange={(e) => setOrgForm({ ...orgForm, supportContactEmail: e.target.value })} required />
-            <input className="input" type="password" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
+            <div className="button-row">
+              <input
+                className="input"
+                type="password"
+                placeholder="NIP (max 9 caractères, minuscules, sans caractères spéciaux)"
+                value={orgForm.pin}
+                onChange={(e) => setOrgForm({ ...orgForm, pin: sanitizeOrgPin(e.target.value) })}
+                maxLength={ORG_PIN_MAX_LENGTH}
+                required
+              />
+              <button className="button secondary" type="button" onClick={generateOrgPin}>Générer un NIP</button>
+            </div>
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
         </section>
