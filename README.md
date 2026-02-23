@@ -5,7 +5,7 @@ Portail web MVP (API NestJS + UI React/Vite) dans **une seule image Docker** com
 ## Architecture
 - `api/`: NestJS + Prisma + PostgreSQL + import/export Excel.
 - `web/`: React/Vite pages `/login`, `/org`, `/admin`.
-- `openshift/`: PVC, Deployment, Service, Route.
+- `openshift/`: manifest OpenShift unique (PVC, Deployment, Service, Route, SSOAuthConfig).
 
 ## Variables d'environnement
 - `PORT=8080`
@@ -57,7 +57,7 @@ docker run --rm -p 8080:8080 \
   santequebec:latest
 
 # oc apply
-oc apply -f openshift/
+oc apply -f openshift/all.yaml
 ```
 
 ## Déploiement OpenShift
@@ -79,10 +79,7 @@ Exemple de `DATABASE_URL` en intra-pod:
 
 Appliquer les manifests:
 ```bash
-oc apply -f openshift/pvc.yaml
-oc apply -f openshift/deployment.yaml
-oc apply -f openshift/service.yaml
-oc apply -f openshift/route.yaml
+oc apply -f openshift/all.yaml
 ```
 
 ## Notes MVP
