@@ -26,6 +26,7 @@ export function AdminDashboard() {
   const [selectedFileId, setSelectedFileId] = useState('');
   const [details, setDetails] = useState<any | null>(null);
   const [supportContactDraft, setSupportContactDraft] = useState('');
+  const [orgCodeDraft, setOrgCodeDraft] = useState('');
   const [pinDraft, setPinDraft] = useState('');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [inventoryAuditLogs, setInventoryAuditLogs] = useState<any[]>([]);
@@ -67,6 +68,7 @@ export function AdminDashboard() {
     const data = await api(`/admin/orgs/${orgId}/details`);
     setDetails(data);
     setSupportContactDraft(data.org?.supportContactEmail || '');
+    setOrgCodeDraft(data.org?.orgCode || '');
     setPinDraft('');
     setSelectedOrgId(orgId);
     setSelectedFileId('');
@@ -254,6 +256,22 @@ export function AdminDashboard() {
     setMessage(`Inventaire « ${inventoryName} » supprimé.`);
   };
 
+  const updateOrgCode = async () => {
+    if (!selectedOrgId) return;
+    if (!orgCodeDraft.trim()) {
+      setMessage("Le code de l'organisation est requis.");
+      return;
+    }
+
+    await api(`/admin/orgs/${selectedOrgId}/org-code`, {
+      method: 'PATCH',
+      body: JSON.stringify({ orgCode: orgCodeDraft.trim() })
+    });
+    setMessage("Code de l'organisation mis à jour.");
+    await loadOrgs();
+    await loadOrgDetails(selectedOrgId);
+  };
+
   const updateSupportContact = async () => {
     if (!selectedOrgId) return;
     await api(`/admin/orgs/${selectedOrgId}/support-contact`, {
@@ -292,6 +310,7 @@ export function AdminDashboard() {
       setInventoryItems([]);
       setInventoryAuditLogs([]);
       setSupportContactDraft('');
+      setOrgCodeDraft('');
       setPinDraft('');
     }
 
@@ -561,6 +580,20 @@ export function AdminDashboard() {
             <section className="panel stack">
               <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
               <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
+              <div className="stack">
+                <label htmlFor="orgCode"><strong>Code de l&apos;organisation</strong></label>
+                <div className="button-row">
+                  <input
+                    id="orgCode"
+                    className="input"
+                    type="text"
+                    placeholder="Code organisation"
+                    value={orgCodeDraft}
+                    onChange={(e) => setOrgCodeDraft(e.target.value)}
+                  />
+                  <button className="button" type="button" onClick={updateOrgCode}>Enregistrer</button>
+                </div>
+              </div>
               <div className="stack">
                 <label htmlFor="supportContactEmail"><strong>Contact technique MS Teams</strong></label>
                 <div className="button-row">
