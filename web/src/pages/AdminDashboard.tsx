@@ -203,6 +203,28 @@ export function AdminDashboard() {
     if (selectedOrgId) await loadOrgDetails(selectedOrgId);
   };
 
+  const exportSelectedInventory = async () => {
+    if (!selectedFileId) return;
+
+    const out = await api(`/admin/inventory-files/${selectedFileId}/export-excel`);
+    const binary = window.atob(out.contentBase64 || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = out.filename || `inventaire-${selectedFileId}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    setMessage('Export Excel généré avec succès.');
+  };
+
   const selectedInventory = details?.inventoryFiles?.find((file: any) => file.id === selectedFileId);
 
   const removeItem = async (itemId: string) => {
@@ -609,6 +631,14 @@ export function AdminDashboard() {
                   {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
                 </select>
                 <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={exportSelectedInventory}
+                  disabled={!selectedInventory || selectedInventory.status !== 'CONFIRMED'}
+                >
+                  Exporter Excel (.xlsx)
+                </button>
                 <button className="button secondary" type="button" onClick={lockInventory} disabled={!selectedInventory || selectedInventory.isLocked}>Verrouiller</button>
                 <button className="button secondary" type="button" onClick={unlockInventory} disabled={!selectedInventory || !selectedInventory.isLocked}>Déverrouiller</button>
               </div>
