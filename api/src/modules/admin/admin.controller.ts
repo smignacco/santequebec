@@ -289,6 +289,29 @@ export class AdminController {
     });
   }
 
+  @Patch('orgs/:orgId/org-code')
+  async updateOrgCode(@Req() req: any, @Param('orgId') orgId: string, @Body() body: { orgCode: string }) {
+    this.assertAdmin(req);
+    const orgCode = (body?.orgCode || '').trim();
+    if (!orgCode) {
+      throw new ConflictException('Le code de l\'organisation est requis.');
+    }
+
+    const existing = await this.prisma.organization.findFirst({
+      where: { orgCode, id: { not: orgId } },
+      select: { id: true }
+    });
+    if (existing) {
+      throw new ConflictException('Ce code d\'organisation est déjà utilisé.');
+    }
+
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: { orgCode },
+      include: { organizationType: true }
+    });
+  }
+
   @Patch('orgs/:orgId/access-pin')
   async updateOrgPin(@Req() req: any, @Param('orgId') orgId: string, @Body() body: { pin: string }) {
     this.assertAdmin(req);
