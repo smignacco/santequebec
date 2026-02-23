@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: image-registry.openshift-image-registry.svc:5000/your-project/santequebec:latest
+          image: containers.cisco.com/smignacc/santequebec:20260222
           ports:
             - containerPort: 8080
           env:
