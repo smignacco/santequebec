@@ -26,6 +26,7 @@ export function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
   const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
+  const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -262,12 +263,17 @@ export function AdminDashboard() {
     await loadOrgs();
   };
 
-  const updateWelcomeVideoUrl = async () => {
-    await api('/admin/app-settings/welcome-video-url', {
-      method: 'PATCH',
-      body: JSON.stringify({ welcomeVideoUrl: welcomeVideoUrlDraft.trim() || null })
-    });
-    setMessage('URL de la vidéo explicative mise à jour.');
+  const uploadWelcomeVideoFile = async () => {
+    if (!welcomeVideoFile) {
+      setMessage('Veuillez sélectionner un fichier .mp4.');
+      return;
+    }
+
+    const form = new FormData();
+    form.append('file', welcomeVideoFile);
+    await apiForm('/admin/app-settings/welcome-video-file', form, { method: 'POST' });
+    setWelcomeVideoFile(null);
+    setMessage('Vidéo explicative téléversée avec succès.');
     await loadAppSettings();
   };
 
@@ -361,17 +367,21 @@ export function AdminDashboard() {
       <section className="panel stack admin-tile">
         <h3>Paramètres globaux</h3>
         <label className="stack">
-          URL de la vidéo explicative
+          Téléverser la vidéo explicative (.mp4)
           <input
             className="input"
-            type="url"
-            placeholder="https://..."
-            value={welcomeVideoUrlDraft}
-            onChange={(e) => setWelcomeVideoUrlDraft(e.target.value)}
+            type="file"
+            accept="video/mp4,.mp4"
+            onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
           />
         </label>
+        {welcomeVideoUrlDraft ? (
+          <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
+        ) : (
+          <p>Aucune vidéo explicative configurée.</p>
+        )}
         <div className="button-row">
-          <button className="button" type="button" onClick={updateWelcomeVideoUrl}>Enregistrer la vidéo explicative</button>
+          <button className="button" type="button" onClick={uploadWelcomeVideoFile}>Téléverser la vidéo explicative</button>
         </div>
       </section>
 
