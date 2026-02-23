@@ -57,6 +57,13 @@ docker run --rm -p 8080:8080 \
 oc apply -f openshift/
 ```
 
+
+## Éviter l'écrasement de la base SQLite lors des mises à jour OpenShift
+- **Toujours** conserver `DATABASE_URL=file:/data/app.db` dans le Deployment (la base doit rester sur le PVC monté sur `/data`).
+- Ne changez pas le nom du `PersistentVolumeClaim` (`santequebec-data`) ni le `mountPath` (`/data`) entre deux déploiements.
+- Ne supprimez pas le PVC lors d'un update de code (`oc delete pvc santequebec-data` supprimerait les données).
+- Le conteneur refuse maintenant de démarrer si `DATABASE_URL` ne pointe pas vers `/data`, pour éviter une base éphémère dans l'image.
+
 ## Déploiement OpenShift
 1. Créer un secret `santequebec-secret` contenant `jwtSecret`, `adminUser`, `adminPassHash`.
 2. Appliquer manifests:

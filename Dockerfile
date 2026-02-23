@@ -28,4 +28,4 @@ COPY --from=web-build /opt/app/web/dist /opt/app/public
 RUN mkdir -p /data && chgrp -R 0 /opt/app /data && chmod -R g=u /opt/app /data
 EXPOSE 8080
 WORKDIR /opt/app/api
-CMD ["sh","-c","npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh","-c","case \"${DATABASE_URL}\" in file:/data/*) ;; *) echo 'ERROR: DATABASE_URL must target /data to preserve SQLite data across OpenShift updates.'; exit 1;; esac; npx prisma migrate deploy && node dist/main.js"]
