@@ -1,14 +1,21 @@
-import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { FormEvent, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { saveToken } from '../auth';
 
 export function LoginOrg() {
-  const [orgForm, setOrgForm] = useState({ orgCode: '', pin: '', name: '', email: '' });
+  const [searchParams] = useSearchParams();
+  const orgCodeFromUrl = (searchParams.get('orgCode') || '').trim();
+  const [orgForm, setOrgForm] = useState({ orgCode: orgCodeFromUrl, pin: '', name: '', email: '' });
   const [adminForm, setAdminForm] = useState({ username: '', password: '' });
   const [mode, setMode] = useState<'ORG' | 'ADMIN'>('ORG');
   const [error, setError] = useState('');
   const nav = useNavigate();
+
+  useEffect(() => {
+    if (!orgCodeFromUrl) return;
+    setOrgForm((prev) => ({ ...prev, orgCode: orgCodeFromUrl }));
+  }, [orgCodeFromUrl]);
 
   const submitOrg = async (e: FormEvent) => {
     e.preventDefault();
