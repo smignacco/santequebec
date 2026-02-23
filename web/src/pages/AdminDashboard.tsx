@@ -4,6 +4,20 @@ import { AppShell } from '../components/AppShell';
 
 type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
 
+const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const ORG_PIN_MAX_LENGTH = 9;
+
+const sanitizeOrgPin = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, ORG_PIN_MAX_LENGTH);
+
+const generateRandomOrgPin = () => {
+  let generatedPin = '';
+  for (let i = 0; i < ORG_PIN_MAX_LENGTH; i += 1) {
+    const randomIndex = Math.floor(Math.random() * ORG_PIN_ALLOWED_CHARS.length);
+    generatedPin += ORG_PIN_ALLOWED_CHARS[randomIndex];
+  }
+  return generatedPin;
+};
+
 export function AdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [message, setMessage] = useState('');
@@ -117,7 +131,7 @@ export function AdminDashboard() {
 
     await api(`/admin/batches/${createdBatch.id}/orgs/${createdOrg.id}/access-pin`, {
       method: 'POST',
-      body: JSON.stringify({ pin: orgForm.pin })
+      body: JSON.stringify({ pin: sanitizeOrgPin(orgForm.pin) })
     });
 
     setOrgForm({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
@@ -131,6 +145,10 @@ export function AdminDashboard() {
     setBatchName('');
     setXlsx(null);
     setMessage('');
+  };
+
+  const generateOrgPin = () => {
+    setOrgForm((current) => ({ ...current, pin: generateRandomOrgPin() }));
   };
 
   const importInventory = async () => {
@@ -183,6 +201,28 @@ export function AdminDashboard() {
     await api(`/admin/inventory-files/${selectedFileId}/unlock`, { method: 'PATCH' });
     setMessage('Inventaire déverrouillé. L\'organisation peut reprendre la validation.');
     if (selectedOrgId) await loadOrgDetails(selectedOrgId);
+  };
+
+  const exportSelectedInventory = async () => {
+    if (!selectedFileId) return;
+
+    const out = await api(`/admin/inventory-files/${selectedFileId}/export-excel`);
+    const binary = window.atob(out.contentBase64 || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = out.filename || `inventaire-${selectedFileId}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    setMessage('Export Excel généré avec succès.');
   };
 
   const selectedInventory = details?.inventoryFiles?.find((file: any) => file.id === selectedFileId);
@@ -415,7 +455,18 @@ export function AdminDashboard() {
             <input className="input" placeholder="Code Region" value={orgForm.regionCode} onChange={(e) => setOrgForm({ ...orgForm, regionCode: e.target.value })} required />
             <input className="input" placeholder="Nom affiché" value={orgForm.displayName} onChange={(e) => setOrgForm({ ...orgForm, displayName: e.target.value })} required />
             <input className="input" type="email" placeholder="Courriel contact support (MS Teams)" value={orgForm.supportContactEmail} onChange={(e) => setOrgForm({ ...orgForm, supportContactEmail: e.target.value })} required />
-            <input className="input" type="password" placeholder="NIP (Clé d'accès unique)" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
+            <div className="button-row">
+              <input
+                className="input"
+                type="text"
+                placeholder="NIP (max 9 caractères, minuscules, sans caractères spéciaux)"
+                value={orgForm.pin}
+                onChange={(e) => setOrgForm({ ...orgForm, pin: sanitizeOrgPin(e.target.value) })}
+                maxLength={ORG_PIN_MAX_LENGTH}
+                required
+              />
+              <button className="button secondary" type="button" onClick={generateOrgPin}>Générer un NIP</button>
+            </div>
             <button className="button" type="submit">Créer l&apos;organisation</button>
           </form>
         </section>
@@ -580,6 +631,14 @@ export function AdminDashboard() {
                   {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
                 </select>
                 <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={exportSelectedInventory}
+                  disabled={!selectedInventory || selectedInventory.status !== 'CONFIRMED'}
+                >
+                  Exporter Excel (.xlsx)
+                </button>
                 <button className="button secondary" type="button" onClick={lockInventory} disabled={!selectedInventory || selectedInventory.isLocked}>Verrouiller</button>
                 <button className="button secondary" type="button" onClick={unlockInventory} disabled={!selectedInventory || !selectedInventory.isLocked}>Déverrouiller</button>
               </div>

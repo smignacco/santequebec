@@ -299,6 +299,7 @@ export function OrgDashboard() {
   const openWelcomeVideo = () => {
     if (!welcomeVideoUrl) return;
     setDoNotShowAgain(false);
+    setWelcomeVideoCanPlay(false);
     setShowWelcomeModal(true);
   };
 
