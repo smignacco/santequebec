@@ -165,6 +165,10 @@ a {
   gap: 1rem;
 }
 
+.admin-tile + .admin-tile {
+  margin-top: 1rem;
+}
+
 .input,
 button,
 select {

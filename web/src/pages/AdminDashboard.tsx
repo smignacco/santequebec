@@ -295,7 +295,7 @@ export function AdminDashboard() {
         <p>Gestion des organisations, inventaires et publication pour validation.</p>
       </section>
 
-      <section className="panel stack">
+      <section className="panel stack admin-tile">
         <h3>Organisation</h3>
         <div className="button-row">
           <button className={`button ${view === 'LIST' ? '' : 'secondary'}`} type="button" onClick={() => setView('LIST')}>
@@ -311,7 +311,7 @@ export function AdminDashboard() {
       </section>
 
 
-      <section className="panel stack">
+      <section className="panel stack admin-tile">
         <h3>Paramètres globaux</h3>
         <label className="stack">
           URL de la vidéo explicative
