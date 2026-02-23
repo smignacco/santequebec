@@ -9,6 +9,22 @@ spec:
     requests:
       storage: 5Gi
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: santequebec-secret
+type: Opaque
+stringData:
+  # Keep only key names in secretKeyRef.key (DATABASE_URL, JWT_SECRET, etc.).
+  # Put the real secret values here.
+  databaseUrl: "postgresql://postgresUser:replace-me@localhost:5432/santequebecDB?schema=public"
+  jwtSecret: "replace-me"
+  adminUser: "admin"
+  adminPassHash: "replace-me"
+  postgresDb: "santequebecDB"
+  postgresUser: "postgresUser"
+  postgresPassword: "replace-me"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
