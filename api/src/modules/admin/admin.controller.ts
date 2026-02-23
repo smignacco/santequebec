@@ -13,6 +13,38 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class AdminController {
   constructor(private prisma: PrismaService) {}
   private static readonly WELCOME_VIDEO_DIR = join(process.cwd(), 'public', 'uploads', 'welcome-video');
+  private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
+    'rowNumber',
+    'assetTag',
+    'serial',
+    'model',
+    'site',
+    'location',
+    'notes',
+    'instanceNumber',
+    'serialNumber',
+    'productId',
+    'productDescription',
+    'major',
+    'productType',
+    'productFamily',
+    'architecture',
+    'subArchitecture',
+    'quantity',
+    'ldos',
+    'ldosDetailsInMonths',
+    'centreDeSanteRegional',
+    'serviceableFlag',
+    'contractNumber',
+    'serviceLevel',
+    'serviceLevelDescription',
+    'serviceStartDate',
+    'serviceEndDate',
+    'globalServiceList',
+    'excludedAsset',
+    'manualEntry',
+    'status'
+  ] as const;
 
   private assertAdmin(req: any) { if (req.user?.role !== 'ADMIN') throw new UnauthorizedException(); }
 
@@ -397,16 +429,39 @@ export class AdminController {
     }));
   }
 
-  @Get('batches/:batchId/orgs/:orgId/export-excel')
-  async exportExcel(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string) {
+  @Get('inventory-files/:fileId/export-excel')
+  async exportExcel(@Req() req: any, @Param('fileId') fileId: string) {
     this.assertAdmin(req);
-    const inv = await this.prisma.inventoryFile.findFirstOrThrow({ where: { batchId, organizationId: orgId }, include: { items: true } });
-    const data = inv.items.map((i: any) => ({ assetTag: i.assetTag, serial: i.serial, model: i.model, site: i.site, location: i.location, notes: i.notes, status: i.status }));
+    const inv = await this.prisma.inventoryFile.findUniqueOrThrow({
+      where: { id: fileId },
+      include: {
+        organization: true,
+        batch: true,
+        items: { orderBy: { rowNumber: 'asc' } }
+      }
+    });
+
+    if (inv.status !== 'CONFIRMED') {
+      throw new ConflictException('L\'export Excel est disponible uniquement pour un inventaire confirmé par l\'organisation.');
+    }
+
+    const data = inv.items.map((item: any) => {
+      const row: Record<string, any> = {};
+      for (const column of AdminController.EXPORTABLE_INVENTORY_COLUMNS) {
+        const value = item[column];
+        row[column] = value === null || value === undefined ? '' : value;
+      }
+      return row;
+    });
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventaire');
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    return { filename: `inventory-${orgId}.xlsx`, contentBase64: buffer.toString('base64') };
+
+    const safeOrgCode = (inv.organization.orgCode || 'org').replace(/[^a-z0-9-_]/gi, '-');
+    const safeBatchName = (inv.batch.name || 'inventaire').replace(/[^a-z0-9-_]/gi, '-');
+    return { filename: `inventaire-${safeOrgCode}-${safeBatchName}.xlsx`, contentBase64: buffer.toString('base64') };
   }
 
   @Get('batches/:batchId/orgs/:orgId/export-pdf')

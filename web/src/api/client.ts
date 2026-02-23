@@ -59,3 +59,34 @@ export async function apiBlob(path: string, init: RequestInit = {}) {
   if (!res.ok) throw new Error(await res.text());
   return res.blob();
 }
+
+export function apiBlobWithProgress(path: string, onProgress?: (percent: number) => void): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `${API}${path}`);
+    xhr.responseType = 'blob';
+
+    const token = getToken();
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    xhr.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+      onProgress(percent);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(xhr.responseText || 'Download failed'));
+        return;
+      }
+
+      resolve(xhr.response as Blob);
+    };
+
+    xhr.onerror = () => reject(new Error('Erreur réseau durant le téléchargement.'));
+    xhr.send();
+  });
+}
