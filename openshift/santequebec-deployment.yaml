@@ -28,15 +28,23 @@ spec:
         envFrom:
         - secretRef:
             name: santequebec-env
+      - name: postgres
+        image: postgres:16-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - secretRef:
+            name: santequebec-env
         volumeMounts:
-        - name: santequebec-data-vol
-          mountPath: /data
+        - name: santequebec-postgres-data-vol
+          mountPath: /var/lib/postgresql/data
       imagePullSecrets:
       - name: ech-regcred
       volumes:
-      - name: santequebec-data-vol
+      - name: santequebec-postgres-data-vol
         persistentVolumeClaim:
-          claimName: santequebec-data
+          claimName: santequebec-postgres-data
 ---
 apiVersion: v1
 kind: Service
@@ -66,4 +74,3 @@ spec:
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
-~                                            

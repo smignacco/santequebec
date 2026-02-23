@@ -16,7 +16,6 @@ FROM node:20-bookworm-slim AS runtime
 WORKDIR /opt/app
 ENV NODE_ENV=production
 ENV PORT=8080
-ENV DATABASE_URL=file:/data/app.db
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -25,7 +24,7 @@ COPY --from=api-build /opt/app/api/node_modules /opt/app/api/node_modules
 COPY --from=api-build /opt/app/api/dist /opt/app/api/dist
 COPY --from=api-build /opt/app/api/prisma /opt/app/api/prisma
 COPY --from=web-build /opt/app/web/dist /opt/app/public
-RUN mkdir -p /data && chgrp -R 0 /opt/app /data && chmod -R g=u /opt/app /data
+RUN chgrp -R 0 /opt/app && chmod -R g=u /opt/app
 EXPOSE 8080
 WORKDIR /opt/app/api
-CMD ["sh","-c","case \"${DATABASE_URL}\" in file:/data/*) ;; *) echo 'ERROR: DATABASE_URL must target /data to preserve SQLite data across OpenShift updates.'; exit 1;; esac; npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh","-c","npx prisma migrate deploy && node dist/main.js"]
