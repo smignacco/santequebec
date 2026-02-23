@@ -224,6 +224,34 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Delete('orgs/:orgId')
+  async removeOrg(@Req() req: any, @Param('orgId') orgId: string) {
+    this.assertAdmin(req);
+
+    const inventoryFiles = await this.prisma.inventoryFile.findMany({
+      where: { organizationId: orgId },
+      select: { id: true }
+    });
+    const inventoryFileIds = inventoryFiles.map((file) => file.id);
+
+    const [deletedItemsResult, deletedLogsResult, deletedFilesResult, deletedAccessResult] = await this.prisma.$transaction([
+      this.prisma.inventoryItem.deleteMany({ where: { inventoryFileId: { in: inventoryFileIds } } }),
+      this.prisma.auditLog.deleteMany({ where: { scope: 'INVENTORY_FILE', scopeId: { in: inventoryFileIds } } }),
+      this.prisma.inventoryFile.deleteMany({ where: { organizationId: orgId } }),
+      this.prisma.orgAccess.deleteMany({ where: { organizationId: orgId } })
+    ]);
+
+    await this.prisma.organization.delete({ where: { id: orgId } });
+
+    return {
+      ok: true,
+      deletedInventoryFiles: deletedFilesResult.count,
+      deletedInventoryItems: deletedItemsResult.count,
+      deletedAuditLogs: deletedLogsResult.count,
+      deletedAccessLinks: deletedAccessResult.count
+    };
+  }
+
   @Get('batches')
   listBatches(@Req() req: any) {
     this.assertAdmin(req);
