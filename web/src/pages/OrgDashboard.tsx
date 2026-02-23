@@ -27,6 +27,36 @@ export function OrgDashboard() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
 
+  const getResolvedWelcomeVideoUrl = () => {
+    if (!welcomeVideoUrl) return null;
+    try {
+      return new URL(welcomeVideoUrl, window.location.origin);
+    } catch {
+      return null;
+    }
+  };
+
+  const isDirectVideoFile = () => {
+    const resolved = getResolvedWelcomeVideoUrl();
+    if (!resolved) return false;
+    return /\.mp4$/i.test(resolved.pathname) || resolved.pathname.startsWith('/uploads/welcome-video/');
+  };
+
+  const isPotentialAppPage = () => {
+    const resolved = getResolvedWelcomeVideoUrl();
+    if (!resolved) return false;
+
+    if (resolved.origin !== window.location.origin) {
+      return false;
+    }
+
+    if (isDirectVideoFile()) {
+      return false;
+    }
+
+    return resolved.pathname === '/' || resolved.pathname.startsWith('/org') || resolved.pathname.startsWith('/admin');
+  };
+
   const load = (nextPage = page, nextPageSize = pageSize) => {
     const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
       ? Math.max(data.total || 0, 1)
@@ -392,13 +422,25 @@ export function OrgDashboard() {
             <h3>Bienvenue</h3>
             <p>Visionnez cette vidéo explicative pour découvrir les principales fonctionnalités de l'application.</p>
             <div className="stack">
-              <iframe
-                title="Vidéo explicative"
-                src={welcomeVideoUrl}
-                style={{ width: '100%', minHeight: '320px', border: 0 }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              {isPotentialAppPage() ? (
+                <p>
+                  L&apos;URL configurée semble pointer vers une page de l&apos;application au lieu d&apos;une vidéo.
+                  Veuillez contacter un administrateur pour configurer un fichier vidéo (.mp4).
+                </p>
+              ) : isDirectVideoFile() ? (
+                <video controls style={{ width: '100%', minHeight: '320px' }}>
+                  <source src={welcomeVideoUrl} type="video/mp4" />
+                  Votre navigateur ne supporte pas la lecture vidéo.
+                </video>
+              ) : (
+                <iframe
+                  title="Vidéo explicative"
+                  src={welcomeVideoUrl}
+                  style={{ width: '100%', minHeight: '320px', border: 0 }}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
             </div>
             <label className="link-button" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
               <input type="checkbox" checked={doNotShowAgain} onChange={(e) => setDoNotShowAgain(e.target.checked)} />
