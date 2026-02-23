@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
-import { api, apiForm } from '../api/client';
+import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
 type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
@@ -27,6 +27,8 @@ export function AdminDashboard() {
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
   const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
+  const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
+  const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -269,12 +271,24 @@ export function AdminDashboard() {
       return;
     }
 
-    const form = new FormData();
-    form.append('file', welcomeVideoFile);
-    await apiForm('/admin/app-settings/welcome-video-file', form, { method: 'POST' });
-    setWelcomeVideoFile(null);
-    setMessage('Vidéo explicative téléversée avec succès.');
-    await loadAppSettings();
+    setMessage('');
+    setWelcomeVideoUploadPercent(0);
+    setIsUploadingWelcomeVideo(true);
+
+    try {
+      const form = new FormData();
+      form.append('file', welcomeVideoFile);
+      await apiFormWithProgress('/admin/app-settings/welcome-video-file', form, (percent) => {
+        setWelcomeVideoUploadPercent(percent);
+      });
+
+      setWelcomeVideoUploadPercent(100);
+      setWelcomeVideoFile(null);
+      setMessage('Vidéo explicative téléversée avec succès.');
+      await loadAppSettings();
+    } finally {
+      setIsUploadingWelcomeVideo(false);
+    }
   };
 
 
@@ -380,8 +394,16 @@ export function AdminDashboard() {
         ) : (
           <p>Aucune vidéo explicative configurée.</p>
         )}
+        {isUploadingWelcomeVideo && (
+          <div className="stack" aria-live="polite">
+            <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
+            <progress max={100} value={welcomeVideoUploadPercent} />
+          </div>
+        )}
         <div className="button-row">
-          <button className="button" type="button" onClick={uploadWelcomeVideoFile}>Téléverser la vidéo explicative</button>
+          <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
+            {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
+          </button>
         </div>
       </section>
 
