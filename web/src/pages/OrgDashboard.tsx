@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, apiBlobWithProgress } from '../api/client';
+import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { InventoryTable } from './InventoryTable';
+import { getToken } from '../auth';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200];
 const ALL_PAGE_SIZE = -1;
@@ -26,9 +27,6 @@ export function OrgDashboard() {
   const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
-  const [welcomeVideoBlobUrl, setWelcomeVideoBlobUrl] = useState('');
-  const [welcomeVideoLoadProgress, setWelcomeVideoLoadProgress] = useState(0);
-  const [welcomeVideoCanPlay, setWelcomeVideoCanPlay] = useState(false);
 
   const getResolvedWelcomeVideoUrl = () => {
     if (!welcomeVideoUrl) return null;
@@ -99,46 +97,6 @@ export function OrgDashboard() {
       });
   }, []);
 
-  useEffect(() => {
-    if (!welcomeVideoUrl || welcomeVideoUrl !== '/api/org/welcome-video/file') {
-      setWelcomeVideoBlobUrl('');
-      setWelcomeVideoLoadProgress(0);
-      setWelcomeVideoCanPlay(false);
-      return;
-    }
-
-    let isCancelled = false;
-    let objectUrl = '';
-
-    setWelcomeVideoBlobUrl('');
-    setWelcomeVideoLoadProgress(0);
-    setWelcomeVideoCanPlay(false);
-
-    apiBlobWithProgress('/org/welcome-video/file', (percent) => {
-      if (!isCancelled) {
-        setWelcomeVideoLoadProgress(percent);
-      }
-    })
-      .then((blob) => {
-        if (isCancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setWelcomeVideoBlobUrl(objectUrl);
-        setWelcomeVideoLoadProgress(100);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setWelcomeVideoBlobUrl('');
-          setWelcomeVideoLoadProgress(0);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [welcomeVideoUrl]);
 
   const patch = async (id: string, status: string) => {
     if (isLocked) return;
@@ -346,7 +304,10 @@ export function OrgDashboard() {
   };
 
   const isAuthenticatedWelcomeVideo = welcomeVideoUrl === '/api/org/welcome-video/file';
-  const resolvedWelcomeVideoSrc = isAuthenticatedWelcomeVideo ? welcomeVideoBlobUrl : welcomeVideoUrl;
+  const token = getToken();
+  const resolvedWelcomeVideoSrc = isAuthenticatedWelcomeVideo
+    ? (token ? `/api/org/welcome-video/file?access_token=${encodeURIComponent(token)}` : '')
+    : welcomeVideoUrl;
 
   const closeWelcomeModal = async () => {
     if (doNotShowAgain) {
@@ -479,40 +440,12 @@ export function OrgDashboard() {
                 </p>
               ) : isDirectVideoFile() ? (
                 resolvedWelcomeVideoSrc ? (
-                  <div className="stack" style={{ gap: '0.5rem' }}>
-                    <video
-                      controls
-                      preload="metadata"
-                      style={{ width: '100%', minHeight: '320px' }}
-                      onCanPlay={() => setWelcomeVideoCanPlay(true)}
-                    >
-                      <source src={resolvedWelcomeVideoSrc} type="video/mp4" />
-                      Votre navigateur ne supporte pas la lecture vidéo.
-                    </video>
-                    {!welcomeVideoCanPlay && (
-                      <div>
-                        <p style={{ marginBottom: '0.35rem' }}>
-                          Préparation de la vidéo... {welcomeVideoLoadProgress > 0 ? `${welcomeVideoLoadProgress}%` : ''}
-                        </p>
-                        {welcomeVideoLoadProgress > 0 && welcomeVideoLoadProgress < 100 && (
-                          <div className="progress-track" aria-label="Progression du chargement de la vidéo">
-                            <div className="progress-value" style={{ width: `${welcomeVideoLoadProgress}%` }} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <video controls preload="metadata" style={{ width: '100%', minHeight: '320px' }}>
+                    <source src={resolvedWelcomeVideoSrc} type="video/mp4" />
+                    Votre navigateur ne supporte pas la lecture vidéo.
+                  </video>
                 ) : (
-                  <div>
-                    <p style={{ marginBottom: '0.35rem' }}>
-                      Chargement de la vidéo explicative... {welcomeVideoLoadProgress > 0 ? `${welcomeVideoLoadProgress}%` : ''}
-                    </p>
-                    {welcomeVideoLoadProgress > 0 && welcomeVideoLoadProgress < 100 && (
-                      <div className="progress-track" aria-label="Progression du chargement de la vidéo">
-                        <div className="progress-value" style={{ width: `${welcomeVideoLoadProgress}%` }} />
-                      </div>
-                    )}
-                  </div>
+                  <p>Impossible de charger la vidéo explicative. Veuillez vous reconnecter.</p>
                 )
               ) : (
                 <iframe
