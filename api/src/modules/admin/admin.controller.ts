@@ -2,6 +2,8 @@ import { Body, ConflictException, Controller, Delete, Get, Param, Patch, Post, Q
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as argon2 from 'argon2';
 import { createHash, randomInt } from 'crypto';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../../common/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -10,6 +12,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 export class AdminController {
   constructor(private prisma: PrismaService) {}
+  private static readonly WELCOME_VIDEO_DIR = join(process.cwd(), 'public', 'uploads', 'welcome-video');
 
   private assertAdmin(req: any) { if (req.user?.role !== 'ADMIN') throw new UnauthorizedException(); }
 
@@ -52,6 +55,39 @@ export class AdminController {
     this.assertAdmin(req);
     const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
     return { welcomeVideoUrl: settings?.welcomeVideoUrl || '' };
+  }
+
+  @Post('app-settings/welcome-video-file')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadWelcomeVideoFile(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+    this.assertAdmin(req);
+
+    if (!file) {
+      throw new ConflictException('Veuillez sélectionner un fichier vidéo .mp4.');
+    }
+
+    const extension = extname(file.originalname || '').toLowerCase();
+    const isMp4 = extension === '.mp4' || file.mimetype === 'video/mp4';
+    if (!isMp4) {
+      throw new ConflictException('Seuls les fichiers .mp4 sont acceptés.');
+    }
+
+    if (!existsSync(AdminController.WELCOME_VIDEO_DIR)) {
+      mkdirSync(AdminController.WELCOME_VIDEO_DIR, { recursive: true });
+    }
+
+    const filename = `welcome-video-${Date.now()}.mp4`;
+    const fullPath = join(AdminController.WELCOME_VIDEO_DIR, filename);
+    writeFileSync(fullPath, file.buffer);
+
+    const welcomeVideoUrl = `/uploads/welcome-video/${filename}`;
+    const settings = await this.prisma.appSettings.upsert({
+      where: { id: 'global' },
+      update: { welcomeVideoUrl },
+      create: { id: 'global', welcomeVideoUrl }
+    });
+
+    return { welcomeVideoUrl: settings.welcomeVideoUrl || '' };
   }
 
   @Patch('app-settings/welcome-video-url')

@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
-import { api, apiForm } from '../api/client';
+import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
 type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
@@ -26,6 +26,9 @@ export function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
   const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
+  const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
+  const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
+  const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -262,13 +265,30 @@ export function AdminDashboard() {
     await loadOrgs();
   };
 
-  const updateWelcomeVideoUrl = async () => {
-    await api('/admin/app-settings/welcome-video-url', {
-      method: 'PATCH',
-      body: JSON.stringify({ welcomeVideoUrl: welcomeVideoUrlDraft.trim() || null })
-    });
-    setMessage('URL de la vidéo explicative mise à jour.');
-    await loadAppSettings();
+  const uploadWelcomeVideoFile = async () => {
+    if (!welcomeVideoFile) {
+      setMessage('Veuillez sélectionner un fichier .mp4.');
+      return;
+    }
+
+    setMessage('');
+    setWelcomeVideoUploadPercent(0);
+    setIsUploadingWelcomeVideo(true);
+
+    try {
+      const form = new FormData();
+      form.append('file', welcomeVideoFile);
+      await apiFormWithProgress('/admin/app-settings/welcome-video-file', form, (percent) => {
+        setWelcomeVideoUploadPercent(percent);
+      });
+
+      setWelcomeVideoUploadPercent(100);
+      setWelcomeVideoFile(null);
+      setMessage('Vidéo explicative téléversée avec succès.');
+      await loadAppSettings();
+    } finally {
+      setIsUploadingWelcomeVideo(false);
+    }
   };
 
 
@@ -361,17 +381,29 @@ export function AdminDashboard() {
       <section className="panel stack admin-tile">
         <h3>Paramètres globaux</h3>
         <label className="stack">
-          URL de la vidéo explicative
+          Téléverser la vidéo explicative (.mp4)
           <input
             className="input"
-            type="url"
-            placeholder="https://..."
-            value={welcomeVideoUrlDraft}
-            onChange={(e) => setWelcomeVideoUrlDraft(e.target.value)}
+            type="file"
+            accept="video/mp4,.mp4"
+            onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
           />
         </label>
+        {welcomeVideoUrlDraft ? (
+          <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
+        ) : (
+          <p>Aucune vidéo explicative configurée.</p>
+        )}
+        {isUploadingWelcomeVideo && (
+          <div className="stack" aria-live="polite">
+            <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
+            <progress max={100} value={welcomeVideoUploadPercent} />
+          </div>
+        )}
         <div className="button-row">
-          <button className="button" type="button" onClick={updateWelcomeVideoUrl}>Enregistrer la vidéo explicative</button>
+          <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
+            {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
+          </button>
         </div>
       </section>
 
