@@ -215,6 +215,33 @@ export function AdminDashboard() {
     setPinDraft('');
     setMessage("NIP de l'organisation mis à jour.");
   };
+
+  const removeOrg = async (orgId: string, displayName: string) => {
+    const confirmed = window.confirm(`Supprimer l'organisation « ${displayName} » ainsi que tous ses inventaires ? Cette action est irréversible.`);
+    if (!confirmed) return;
+
+    await api(`/admin/orgs/${orgId}`, { method: 'DELETE' });
+
+    if (selectedOrgId === orgId) {
+      setSelectedOrgId('');
+      setSelectedFileId('');
+      setDetails(null);
+      setInventoryItems([]);
+      setInventoryAuditLogs([]);
+      setSupportContactDraft('');
+      setPinDraft('');
+    }
+
+    if (uploadOrgId === orgId) {
+      setUploadOrgId('');
+      setBatchName('');
+      setXlsx(null);
+    }
+
+    setMessage(`Organisation « ${displayName} » supprimée avec ses données d'inventaire.`);
+    await loadOrgs();
+  };
+
   const updateWelcomeVideoUrl = async () => {
     await api('/admin/app-settings/welcome-video-url', {
       method: 'PATCH',
@@ -404,6 +431,9 @@ export function AdminDashboard() {
                     <td>
                       <button className="icon-button" type="button" title="Téléverser un inventaire" onClick={() => openUpload(o.id)}>
                         ⬆️
+                      </button>
+                      <button className="icon-button" type="button" title="Supprimer l'organisation" onClick={() => removeOrg(o.id, o.displayName)}>
+                        🗑️
                       </button>
                     </td>
                   </tr>
