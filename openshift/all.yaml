@@ -66,28 +66,28 @@ spec:
                   name: santequebec-secret
                   key: adminPassHash
         - name: postgres
-          image: postgres:16-alpine
+          image: registry.redhat.io/rhel9/postgresql-16:latest
           ports:
             - containerPort: 5432
           env:
-            - name: POSTGRES_DB
+            - name: POSTGRESQL_DATABASE
               valueFrom:
                 secretKeyRef:
                   name: santequebec-secret
                   key: postgresDb
-            - name: POSTGRES_USER
+            - name: POSTGRESQL_USER
               valueFrom:
                 secretKeyRef:
                   name: santequebec-secret
                   key: postgresUser
-            - name: POSTGRES_PASSWORD
+            - name: POSTGRESQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: santequebec-secret
                   key: postgresPassword
           volumeMounts:
             - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/pgsql/data
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
