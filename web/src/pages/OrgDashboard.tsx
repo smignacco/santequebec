@@ -14,6 +14,7 @@ export function OrgDashboard() {
   const [supportContactEmail, setSupportContactEmail] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -60,17 +61,23 @@ export function OrgDashboard() {
     return resolved.pathname === '/' || resolved.pathname.startsWith('/org') || resolved.pathname.startsWith('/admin');
   };
 
-  const load = (nextPage = page, nextPageSize = pageSize) => {
+  const load = (nextPage = page, nextPageSize = pageSize, nextFilters = columnFilters) => {
     const resolvedPageSize = nextPageSize === ALL_PAGE_SIZE
       ? Math.max(data.total || 0, 1)
       : nextPageSize;
 
-    return api(`/org/items?page=${nextPage}&pageSize=${resolvedPageSize}`).then(setData);
+    const query = new URLSearchParams({ page: String(nextPage), pageSize: String(resolvedPageSize) });
+    const serializedFilters = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
+    if (Object.keys(serializedFilters).length) {
+      query.set('filters', JSON.stringify(serializedFilters));
+    }
+
+    return api(`/org/items?${query.toString()}`).then(setData);
   };
 
   useEffect(() => {
-    load(page, pageSize);
-  }, [page, pageSize]);
+    load(page, pageSize, columnFilters);
+  }, [page, pageSize, columnFilters]);
 
   useEffect(() => {
     api('/org/me')
@@ -153,6 +160,7 @@ export function OrgDashboard() {
   };
 
   const total = data.total || 0;
+  const filteredTotal = data.filteredTotal ?? total;
   const confirmed = data.confirmed || 0;
   const fileStatus = data.fileStatus || '';
   const isLocked = Boolean(data.isLocked);
@@ -161,7 +169,7 @@ export function OrgDashboard() {
   const canResume = fileStatus === 'CONFIRMED' && !isLocked;
   const completion = total ? Math.round((confirmed / total) * 100) : 0;
   const effectivePageSize = pageSize === ALL_PAGE_SIZE ? Math.max(total, 1) : pageSize;
-  const totalPages = Math.max(1, Math.ceil(total / effectivePageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / effectivePageSize));
 
   const goToPage = (nextPage: number) => {
     const boundedPage = Math.min(totalPages, Math.max(1, nextPage));
@@ -177,6 +185,26 @@ export function OrgDashboard() {
     setPage(1);
   };
 
+
+  const onColumnFilterChange = (column: string, value: string) => {
+    setColumnFilters((current) => {
+      const next = { ...current };
+      if (!value) {
+        delete next[column];
+      } else {
+        next[column] = value;
+      }
+      return next;
+    });
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setColumnFilters({});
+    setPage(1);
+  };
+
+  const hasActiveFilters = Object.keys(columnFilters).length > 0;
   const detectCsvDelimiter = (headerLine: string) => {
     const delimiterCandidates = [',', ';', '\t'];
     const scores = delimiterCandidates.map((delimiter) => ({
@@ -402,6 +430,9 @@ export function OrgDashboard() {
             <button className="button secondary" type="button" onClick={() => goToPage(page + 1)} disabled={page >= totalPages}>
               Suivant
             </button>
+            <button className="button secondary" type="button" onClick={clearFilters} disabled={!hasActiveFilters}>
+              Effacer filtre(s)
+            </button>
           </div>
 
           <label className="rows-control">
@@ -416,7 +447,7 @@ export function OrgDashboard() {
           </label>
         </div>
 
-        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked} />
+        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked} columnFilters={columnFilters} onFilterChange={onColumnFilterChange} filterValuesByColumn={data.filterValuesByColumn || {}} />
       </section>
 
       {message && (
