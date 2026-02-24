@@ -146,7 +146,29 @@ export class AdminController {
   updateType(@Req() req: any, @Param('id') id: string, @Body() body: { label: string }) { this.assertAdmin(req); return this.prisma.organizationType.update({ where: { id }, data: body }); }
 
   @Get('orgs')
-  listOrgs(@Req() req: any) { this.assertAdmin(req); return this.prisma.organization.findMany({ include: { organizationType: true } }); }
+  async listOrgs(@Req() req: any) {
+    this.assertAdmin(req);
+    const organizations = await this.prisma.organization.findMany({ include: { organizationType: true } });
+    const orgIds = organizations.map((org) => org.id);
+
+    const loginCounts = orgIds.length
+      ? await this.prisma.auditLog.groupBy({
+          by: ['scopeId'],
+          where: {
+            scope: 'ORG_ACCESS',
+            action: 'ORG_LOGIN',
+            scopeId: { in: orgIds }
+          },
+          _count: { _all: true }
+        })
+      : [];
+
+    const countByOrgId = new Map(loginCounts.map((entry) => [entry.scopeId, entry._count._all]));
+    return organizations.map((organization) => ({
+      ...organization,
+      loginCount: countByOrgId.get(organization.id) || 0
+    }));
+  }
 
   @Get('orgs/:orgId/details')
   async orgDetails(@Req() req: any, @Param('orgId') orgId: string) {
@@ -186,6 +208,24 @@ export class AdminController {
       where: { scope: 'INVENTORY_FILE', scopeId: fileId },
       orderBy: { createdAt: 'desc' }
     });
+  }
+
+  @Get('orgs/:orgId/access-logs')
+  async orgAccessLogs(@Req() req: any, @Param('orgId') orgId: string) {
+    this.assertAdmin(req);
+    return this.prisma.auditLog.findMany({
+      where: { scope: 'ORG_ACCESS', scopeId: orgId, action: 'ORG_LOGIN' },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  @Delete('orgs/:orgId/access-logs')
+  async clearOrgAccessLogs(@Req() req: any, @Param('orgId') orgId: string) {
+    this.assertAdmin(req);
+    const result = await this.prisma.auditLog.deleteMany({
+      where: { scope: 'ORG_ACCESS', scopeId: orgId, action: 'ORG_LOGIN' }
+    });
+    return { ok: true, deletedCount: result.count };
   }
 
   @Delete('inventory-files/:fileId')
@@ -343,9 +383,10 @@ export class AdminController {
     });
     const inventoryFileIds = inventoryFiles.map((file) => file.id);
 
-    const [deletedItemsResult, deletedLogsResult, deletedFilesResult, deletedAccessResult] = await this.prisma.$transaction([
+    const [deletedItemsResult, deletedLogsResult, deletedOrgAccessLogsResult, deletedFilesResult, deletedAccessResult] = await this.prisma.$transaction([
       this.prisma.inventoryItem.deleteMany({ where: { inventoryFileId: { in: inventoryFileIds } } }),
       this.prisma.auditLog.deleteMany({ where: { scope: 'INVENTORY_FILE', scopeId: { in: inventoryFileIds } } }),
+      this.prisma.auditLog.deleteMany({ where: { scope: 'ORG_ACCESS', scopeId: orgId, action: 'ORG_LOGIN' } }),
       this.prisma.inventoryFile.deleteMany({ where: { organizationId: orgId } }),
       this.prisma.orgAccess.deleteMany({ where: { organizationId: orgId } })
     ]);
@@ -356,7 +397,7 @@ export class AdminController {
       ok: true,
       deletedInventoryFiles: deletedFilesResult.count,
       deletedInventoryItems: deletedItemsResult.count,
-      deletedAuditLogs: deletedLogsResult.count,
+      deletedAuditLogs: deletedLogsResult.count + deletedOrgAccessLogsResult.count,
       deletedAccessLinks: deletedAccessResult.count
     };
   }

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { ThrottleGuard } from './throttle.guard';
@@ -21,8 +21,11 @@ export class AuthController {
 
   @UseGuards(ThrottleGuard)
   @Post('org-login')
-  orgLogin(@Body() dto: OrgLoginDto) {
-    return this.auth.orgLogin(dto);
+  orgLogin(@Body() dto: OrgLoginDto, @Req() req: any) {
+    return this.auth.orgLogin(dto, {
+      ipAddress: String(req.headers?.['x-forwarded-for'] || req.ip || '').split(',')[0]?.trim() || null,
+      userAgent: req.headers?.['user-agent'] || null
+    });
   }
 
   @Post('admin-login')

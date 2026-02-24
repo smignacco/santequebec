@@ -8,7 +8,7 @@ export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService) {}
 
   private readonly defaultAdminUser = 'admin';
-  async orgLogin(input: { orgCode: string; pin: string; name: string; email: string }) {
+  async orgLogin(input: { orgCode: string; pin: string; name: string; email: string }, context?: { ipAddress?: string | null; userAgent?: string | null }) {
     const org = await this.prisma.organization.findUnique({ where: { orgCode: input.orgCode } });
     if (!org) throw new UnauthorizedException('Invalid credentials');
     const access = await this.prisma.orgAccess.findFirst({
@@ -20,7 +20,22 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name: input.name, email: input.email });
-    await this.prisma.auditLog.create({ data: { scope: 'ORG_ACCESS', scopeId: access.id, actorType: 'ORG_USER', actorName: input.name, actorEmail: input.email, action: 'ORG_LOGIN', detailsJson: JSON.stringify({ orgCode: input.orgCode }) } });
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'ORG_ACCESS',
+        scopeId: org.id,
+        actorType: 'ORG_USER',
+        actorName: input.name,
+        actorEmail: input.email,
+        action: 'ORG_LOGIN',
+        detailsJson: JSON.stringify({
+          orgCode: input.orgCode,
+          accessId: access.id,
+          ipAddress: context?.ipAddress || null,
+          userAgent: context?.userAgent || null
+        })
+      }
+    });
     return { token };
   }
 
