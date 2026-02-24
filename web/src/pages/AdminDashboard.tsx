@@ -41,6 +41,11 @@ export function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
   const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
+  const [webexEnabled, setWebexEnabled] = useState(false);
+  const [webexBotToken, setWebexBotToken] = useState('');
+  const [webexRoomId, setWebexRoomId] = useState('');
+  const [webexNotifyOnSubmit, setWebexNotifyOnSubmit] = useState(true);
+  const [webexNotifyOnHelp, setWebexNotifyOnHelp] = useState(true);
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
   const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
   const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
@@ -73,6 +78,11 @@ export function AdminDashboard() {
   const loadAppSettings = async () => {
     const data = await api('/admin/app-settings');
     setWelcomeVideoUrlDraft(data?.welcomeVideoUrl || '');
+    setWebexEnabled(Boolean(data?.webexEnabled));
+    setWebexBotToken(data?.webexBotToken || '');
+    setWebexRoomId(data?.webexRoomId || '');
+    setWebexNotifyOnSubmit(data?.webexNotifyOnSubmit !== false);
+    setWebexNotifyOnHelp(data?.webexNotifyOnHelp !== false);
   };
 
   useEffect(() => {
@@ -376,6 +386,27 @@ export function AdminDashboard() {
     }
   };
 
+  const saveWebexSettings = async () => {
+    await api('/admin/app-settings/webex', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        webexEnabled,
+        webexBotToken: webexBotToken.trim() || null,
+        webexRoomId: webexRoomId.trim() || null,
+        webexNotifyOnSubmit,
+        webexNotifyOnHelp
+      })
+    });
+    setMessage('Configuration Webex mise à jour.');
+    await loadAppSettings();
+  };
+
+  const testWebexSettings = async () => {
+    const out = await api('/admin/app-settings/webex/test', { method: 'POST' });
+    setMessage(out?.message || (out?.ok ? 'Connexion Webex valide.' : 'Échec de connexion Webex.'));
+  };
+
+
 
   const openOrgAccessLogs = async (org: any) => {
     const logs = await api(`/admin/orgs/${org.id}/access-logs`);
@@ -532,6 +563,27 @@ export function AdminDashboard() {
             <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
               {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
             </button>
+          </div>
+
+          <hr />
+          <h4>Notifications Webex Teams</h4>
+          <label className="button-row">
+            <input type="checkbox" checked={webexEnabled} onChange={(e) => setWebexEnabled(e.target.checked)} />
+            <span>Activer l&apos;intégration Webex</span>
+          </label>
+          <input className="input" type="password" placeholder="Jeton Bot Webex" value={webexBotToken} onChange={(e) => setWebexBotToken(e.target.value)} />
+          <input className="input" placeholder="Room/Space ID Webex" value={webexRoomId} onChange={(e) => setWebexRoomId(e.target.value)} />
+          <label className="button-row">
+            <input type="checkbox" checked={webexNotifyOnSubmit} onChange={(e) => setWebexNotifyOnSubmit(e.target.checked)} />
+            <span>Notifier quand une organisation soumet son inventaire</span>
+          </label>
+          <label className="button-row">
+            <input type="checkbox" checked={webexNotifyOnHelp} onChange={(e) => setWebexNotifyOnHelp(e.target.checked)} />
+            <span>Notifier quand une organisation clique sur « Besoin d&apos;aide »</span>
+          </label>
+          <div className="button-row">
+            <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer Webex</button>
+            <button className="button secondary" type="button" onClick={testWebexSettings}>Tester la connexion</button>
           </div>
         </section>
       ) : view === 'CREATE' ? (

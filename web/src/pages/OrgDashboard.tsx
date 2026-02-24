@@ -211,6 +211,17 @@ export function OrgDashboard() {
     ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(supportContactEmail)}`
     : '';
 
+
+  const notifyHelpRequest = async () => {
+    await runBusyAction('help-request', async () => {
+      await api('/org/help-request', { method: 'POST' });
+      setMessage("Demande d'aide envoyée aux administrateurs.");
+      if (teamsHelpLink) {
+        window.open(teamsHelpLink, '_blank', 'noreferrer');
+      }
+    });
+  };
+
   const onPageSizeChange = (value: number) => {
     setPageSize(value);
     setPage(1);
@@ -413,19 +424,13 @@ export function OrgDashboard() {
             <button className="button secondary" type="button" onClick={openWelcomeVideo} disabled={!welcomeVideoUrl}>
               Vidéo explicative
             </button>
-            <a
+            <button
               className={`button secondary teams-help-button ${teamsHelpLink ? '' : 'is-disabled'}`}
-            href={teamsHelpLink || undefined}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!teamsHelpLink}
-            onClick={(event) => {
-              if (!teamsHelpLink) {
-                event.preventDefault();
-              }
-            }}
-            title={teamsHelpLink ? 'Ouvrir le chat Microsoft Teams' : 'Aucun contact support Teams configuré'}
-          >
+              type="button"
+              onClick={notifyHelpRequest}
+              title={teamsHelpLink ? "Notifier l'aide et ouvrir le chat Microsoft Teams" : "Notifier l'aide aux administrateurs"}
+              disabled={isLoading}
+            >
             <span aria-hidden="true" className="teams-logo">
               <svg viewBox="0 0 24 24" width="16" height="16" role="img">
                 <rect x="1" y="4" width="14" height="16" rx="3" fill="#5b5fc7" />
@@ -435,7 +440,7 @@ export function OrgDashboard() {
               </svg>
             </span>
             Besoin d'aide
-            </a>
+            </button>
           </div>
         </div>
       </section>
