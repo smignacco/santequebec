@@ -51,14 +51,31 @@ export class WebexService {
     ].join('\n'));
   }
 
-  async notifyHelpRequested(payload: { orgName: string; orgCode: string; requestedAt: string }) {
+  async notifyHelpRequested(payload: { orgName: string; orgCode: string; requesterName: string; requesterEmail: string; ipAddress?: string | null; userAgent?: string | null; requestedAt: string }) {
     const settings = await this.loadSettings();
     if (!settings?.webexEnabled || !settings.webexNotifyOnHelp) return;
 
     await this.postMessage([
       '🆘 **Besoin d’aide signalé**',
       `- Organisation: **${payload.orgName}** (${payload.orgCode})`,
+      `- Usager: **${payload.requesterName}** (${payload.requesterEmail})`,
+      `- Adresse IP: ${payload.ipAddress || 'N/A'}`,
+      `- User-Agent: ${payload.userAgent || 'N/A'}`,
       `- Date: ${payload.requestedAt}`
+    ].join('\n'));
+  }
+
+  async notifyOrgLogin(payload: { orgName: string; orgCode: string; requesterName: string; requesterEmail: string; ipAddress?: string | null; userAgent?: string | null; loggedAt: string }) {
+    const settings = await this.loadSettings();
+    if (!settings?.webexEnabled || !settings.webexNotifyOnLogin) return;
+
+    await this.postMessage([
+      '🔐 **Connexion organisation**',
+      `- Organisation: **${payload.orgName}** (${payload.orgCode})`,
+      `- Usager: **${payload.requesterName}** (${payload.requesterEmail})`,
+      `- Adresse IP: ${payload.ipAddress || 'N/A'}`,
+      `- User-Agent: ${payload.userAgent || 'N/A'}`,
+      `- Date: ${payload.loggedAt}`
     ].join('\n'));
   }
 

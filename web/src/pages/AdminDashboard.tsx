@@ -46,6 +46,7 @@ export function AdminDashboard() {
   const [webexRoomId, setWebexRoomId] = useState('');
   const [webexNotifyOnSubmit, setWebexNotifyOnSubmit] = useState(true);
   const [webexNotifyOnHelp, setWebexNotifyOnHelp] = useState(true);
+  const [webexNotifyOnLogin, setWebexNotifyOnLogin] = useState(false);
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
   const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
   const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
@@ -83,6 +84,7 @@ export function AdminDashboard() {
     setWebexRoomId(data?.webexRoomId || '');
     setWebexNotifyOnSubmit(data?.webexNotifyOnSubmit !== false);
     setWebexNotifyOnHelp(data?.webexNotifyOnHelp !== false);
+    setWebexNotifyOnLogin(Boolean(data?.webexNotifyOnLogin));
   };
 
   useEffect(() => {
@@ -394,7 +396,8 @@ export function AdminDashboard() {
         webexBotToken: webexBotToken.trim() || null,
         webexRoomId: webexRoomId.trim() || null,
         webexNotifyOnSubmit,
-        webexNotifyOnHelp
+        webexNotifyOnHelp,
+        webexNotifyOnLogin
       })
     });
     setMessage('Configuration Webex mise à jour.');
@@ -580,6 +583,10 @@ export function AdminDashboard() {
           <label className="button-row">
             <input type="checkbox" checked={webexNotifyOnHelp} onChange={(e) => setWebexNotifyOnHelp(e.target.checked)} />
             <span>Notifier quand une organisation clique sur « Besoin d&apos;aide »</span>
+          </label>
+          <label className="button-row">
+            <input type="checkbox" checked={webexNotifyOnLogin} onChange={(e) => setWebexNotifyOnLogin(e.target.checked)} />
+            <span>Notifier quand un usager d&apos;organisation se connecte</span>
           </label>
           <div className="button-row">
             <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer Webex</button>

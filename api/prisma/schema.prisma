@@ -46,6 +46,7 @@ model AppSettings {
   webexRoomId         String?
   webexNotifyOnSubmit Boolean  @default(true)
   webexNotifyOnHelp   Boolean  @default(true)
+  webexNotifyOnLogin  Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

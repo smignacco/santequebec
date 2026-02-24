@@ -331,6 +331,7 @@ export class OrgController {
   async helpRequest(@Req() req: any) {
     this.assertOrg(req);
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: req.user.organizationId } });
+    const auditContext = this.getAuditContext(req);
 
     await this.prisma.auditLog.create({
       data: {
@@ -340,14 +341,18 @@ export class OrgController {
         actorName: req.user.name,
         actorEmail: req.user.email,
         action: 'ORG_HELP_REQUESTED',
-        detailsJson: JSON.stringify(this.getAuditContext(req))
+        detailsJson: JSON.stringify(auditContext)
       }
     });
 
     await this.webexService.notifyHelpRequested({
       orgName: org.displayName,
       orgCode: org.orgCode,
-      requestedAt: new Date().toISOString()
+      requesterName: req.user.name,
+      requesterEmail: req.user.email,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      requestedAt: auditContext.submittedAt
     });
 
     return { ok: true };

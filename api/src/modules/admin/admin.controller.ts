@@ -93,7 +93,8 @@ export class AdminController {
       webexBotToken: settings?.webexBotToken || '',
       webexRoomId: settings?.webexRoomId || '',
       webexNotifyOnSubmit: settings?.webexNotifyOnSubmit ?? true,
-      webexNotifyOnHelp: settings?.webexNotifyOnHelp ?? true
+      webexNotifyOnHelp: settings?.webexNotifyOnHelp ?? true,
+      webexNotifyOnLogin: settings?.webexNotifyOnLogin ?? false
     };
   }
 
@@ -132,7 +133,7 @@ export class AdminController {
 
 
   @Patch('app-settings/webex')
-  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean }) {
+  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean }) {
     this.assertAdmin(req);
 
     const webexBotToken = typeof body.webexBotToken === 'string' && body.webexBotToken.trim()
@@ -149,7 +150,8 @@ export class AdminController {
         webexBotToken,
         webexRoomId,
         webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
-        webexNotifyOnHelp: body.webexNotifyOnHelp !== false
+        webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
       },
       create: {
         id: 'global',
@@ -157,7 +159,8 @@ export class AdminController {
         webexBotToken,
         webexRoomId,
         webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
-        webexNotifyOnHelp: body.webexNotifyOnHelp !== false
+        webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
       }
     });
 
@@ -166,7 +169,8 @@ export class AdminController {
       webexBotToken: settings.webexBotToken || '',
       webexRoomId: settings.webexRoomId || '',
       webexNotifyOnSubmit: settings.webexNotifyOnSubmit,
-      webexNotifyOnHelp: settings.webexNotifyOnHelp
+      webexNotifyOnHelp: settings.webexNotifyOnHelp,
+      webexNotifyOnLogin: settings.webexNotifyOnLogin
     };
   }
 

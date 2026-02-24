@@ -2,10 +2,11 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../common/prisma.service';
+import { WebexService } from '../webex/webex.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(private prisma: PrismaService, private jwt: JwtService, private webexService: WebexService) {}
 
   private readonly defaultAdminUser = 'admin';
   async orgLogin(input: { orgCode: string; pin: string; name: string; email: string }, context?: { ipAddress?: string | null; userAgent?: string | null }) {
@@ -20,6 +21,14 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name: input.name, email: input.email });
+    const loginContext = {
+      orgCode: input.orgCode,
+      accessId: access.id,
+      ipAddress: context?.ipAddress || null,
+      userAgent: context?.userAgent || null,
+      loggedAt: new Date().toISOString()
+    };
+
     await this.prisma.auditLog.create({
       data: {
         scope: 'ORG_ACCESS',
@@ -28,14 +37,20 @@ export class AuthService {
         actorName: input.name,
         actorEmail: input.email,
         action: 'ORG_LOGIN',
-        detailsJson: JSON.stringify({
-          orgCode: input.orgCode,
-          accessId: access.id,
-          ipAddress: context?.ipAddress || null,
-          userAgent: context?.userAgent || null
-        })
+        detailsJson: JSON.stringify(loginContext)
       }
     });
+
+    await this.webexService.notifyOrgLogin({
+      orgName: org.displayName,
+      orgCode: org.orgCode,
+      requesterName: input.name,
+      requesterEmail: input.email,
+      ipAddress: loginContext.ipAddress,
+      userAgent: loginContext.userAgent,
+      loggedAt: loginContext.loggedAt
+    });
+
     return { token };
   }
 
