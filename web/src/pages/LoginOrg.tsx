@@ -53,7 +53,7 @@ export function LoginOrg() {
             />
             <div>
               <h1>Gestion de l&apos;inventaire Cisco</h1>
-              <p>Portail sécurisé de validation d&apos;inventaire. Seules les organisations autorisées et les administrateurs peuvent accéder aux sections de l&apos;application.</p>
+              <p>Portail sécurisé de validation d’inventaire. L’accès à cette application est réservé aux établissements autorisés et aux administrateurs.</p>
             </div>
           </div>
         </section>
