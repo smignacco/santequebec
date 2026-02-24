@@ -10,6 +10,17 @@ spec:
       storage: 5Gi
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: santequebec-app-uploads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: santequebec-secret
@@ -65,6 +76,9 @@ spec:
                 secretKeyRef:
                   name: santequebec-secret
                   key: adminPassHash
+          volumeMounts:
+            - name: app-uploads
+              mountPath: /opt/app/api/public/uploads
         - name: postgres
           image: registry.redhat.io/rhel9/postgresql-16:latest
           ports:
@@ -89,6 +103,9 @@ spec:
             - name: postgres-data
               mountPath: /var/lib/pgsql/data
       volumes:
+        - name: app-uploads
+          persistentVolumeClaim:
+            claimName: santequebec-app-uploads
         - name: postgres-data
           persistentVolumeClaim:
             claimName: santequebec-postgres-data
