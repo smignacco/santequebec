@@ -17,7 +17,10 @@ export function InventoryTable({
   onBulkPatch,
   onManualEdit,
   visibleColumns,
-  canEdit = true
+  canEdit = true,
+  columnFilters = {},
+  onFilterChange,
+  filterValuesByColumn = {}
 }: {
   items: any[];
   onPatch: (id: string, status: string) => void;
@@ -25,8 +28,10 @@ export function InventoryTable({
   onManualEdit?: (id: string, payload: { serialNumber: string; productId?: string; productDescription?: string }) => Promise<void>;
   visibleColumns?: string[];
   canEdit?: boolean;
+  columnFilters?: Record<string, string>;
+  onFilterChange?: (column: string, value: string) => void;
+  filterValuesByColumn?: Record<string, string[]>;
 }) {
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingId, setEditingId] = useState<string>('');
@@ -51,27 +56,17 @@ export function InventoryTable({
     return Array.from(columns);
   }, [items, visibleColumns]);
 
-  const filterValuesByColumn = useMemo(() => {
-    const result: Record<string, string[]> = {};
-    tableColumns.forEach((column) => {
-      const values = Array.from(new Set(items.map((item) => String(item[column] ?? '').trim()).filter(Boolean)));
-      result[column] = values;
-    });
-    return result;
-  }, [items, tableColumns]);
+  const sortedItems = useMemo(() => {
+    if (!sortColumn) return items;
 
-  const sortedAndFilteredItems = useMemo(() => {
-    const filteredItems = items.filter((item) => Object.entries(columnFilters).every(([column, value]) => String(item[column] ?? '') === value));
-    if (!sortColumn) return filteredItems;
-
-    return [...filteredItems].sort((a, b) => {
+    return [...items].sort((a, b) => {
       const left = String(a[sortColumn] ?? '').toLowerCase();
       const right = String(b[sortColumn] ?? '').toLowerCase();
       if (left === right) return 0;
       const cmp = left > right ? 1 : -1;
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [items, columnFilters, sortColumn, sortDirection]);
+  }, [items, sortColumn, sortDirection]);
 
   const toggleSort = (column: string) => {
     if (sortColumn !== column) {
@@ -83,19 +78,7 @@ export function InventoryTable({
     setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
   };
 
-  const updateFilter = (column: string, value: string) => {
-    setColumnFilters((currentFilters) => {
-      if (!value) {
-        const nextFilters = { ...currentFilters };
-        delete nextFilters[column];
-        return nextFilters;
-      }
-
-      return { ...currentFilters, [column]: value };
-    });
-  };
-
-  const bulkIds = sortedAndFilteredItems.map((item) => item.id).filter(Boolean);
+  const bulkIds = sortedItems.map((item) => item.id).filter(Boolean);
   const runBulkPatch = (status: string) => {
     if (!onBulkPatch || !bulkIds.length) return;
     onBulkPatch(bulkIds, status);
@@ -137,7 +120,7 @@ export function InventoryTable({
                     {prettify(column)}
                     {sortColumn === column ? ` (${sortDirection === 'asc' ? '↑' : '↓'})` : ''}
                   </button>
-                  <select value={columnFilters[column] || ''} onChange={(event) => updateFilter(column, event.target.value)}>
+                  <select value={columnFilters[column] || ''} onChange={(event) => onFilterChange?.(column, event.target.value)}>
                     <option value="">Tous</option>
                     {filterValuesByColumn[column]?.map((value) => (
                       <option key={`${column}-${value}`} value={value}>{value}</option>
@@ -159,7 +142,7 @@ export function InventoryTable({
           </tr>
         </thead>
         <tbody>
-          {sortedAndFilteredItems.map((item) => (
+          {sortedItems.map((item) => (
             <tr key={item.id}>
               {tableColumns.map((column) => (
                 <td key={`${item.id}-${column}`}>

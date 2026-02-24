@@ -104,7 +104,7 @@ export class OrgController {
   }
 
   @Get('items')
-  async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+  async items(@Req() req: any, @Query('status') status?: string, @Query('q') q = '', @Query('page') page = '1', @Query('pageSize') pageSize = '20', @Query('filters') filters?: string) {
     this.assertOrg(req);
     const p = Number(page), ps = Number(pageSize);
     const file = await this.prisma.inventoryFile.findFirst({
@@ -115,9 +115,49 @@ export class OrgController {
     const where: any = { inventoryFileId: file.id };
     if (status) where.status = status;
     if (q) where.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
+
+    let parsedFilters: Record<string, string> = {};
+    if (filters) {
+      try {
+        const raw = JSON.parse(filters);
+        if (raw && typeof raw === 'object') {
+          parsedFilters = Object.fromEntries(
+            Object.entries(raw)
+              .filter(([key, value]) => typeof key === 'string' && typeof value === 'string' && value.trim().length > 0)
+              .map(([key, value]) => [key, String(value).trim()])
+          );
+        }
+      } catch {
+        parsedFilters = {};
+      }
+    }
+
+    if (Object.keys(parsedFilters).length) {
+      where.AND = Object.entries(parsedFilters).map(([column, value]) => ({ [column]: value }));
+    }
+
     const total = await this.prisma.inventoryItem.count({ where });
     const confirmed = await this.prisma.inventoryItem.count({ where: { ...where, status: { in: ['CONFIRMED', 'TO_BE_REMOVED'] } } });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
+
+    const allItemsForFilters = await this.prisma.inventoryItem.findMany({ where: { inventoryFileId: file.id }, orderBy: { rowNumber: 'asc' } });
+    const filterValuesByColumn: Record<string, string[]> = {};
+    allItemsForFilters.forEach((item: any) => {
+      Object.entries(item).forEach(([column, rawValue]) => {
+        if (['id', 'inventoryFileId', 'updatedAt'].includes(column)) return;
+        const value = String(rawValue ?? '').trim();
+        if (!value) return;
+        if (!filterValuesByColumn[column]) {
+          filterValuesByColumn[column] = [];
+        }
+        if (!filterValuesByColumn[column].includes(value)) {
+          filterValuesByColumn[column].push(value);
+        }
+      });
+    });
+    Object.keys(filterValuesByColumn).forEach((column) => {
+      filterValuesByColumn[column].sort((a, b) => a.localeCompare(b));
+    });
 
     let visibleColumns: string[] = [];
     if (file.publishedColumns) {
@@ -131,7 +171,7 @@ export class OrgController {
       }
     }
 
-    return { total, confirmed, page: p, pageSize: ps, items, visibleColumns, fileStatus: file.status, isLocked: file.isLocked };
+    return { total, confirmed, page: p, pageSize: ps, items, visibleColumns, fileStatus: file.status, isLocked: file.isLocked, filterValuesByColumn };
   }
 
   @Patch('items')
