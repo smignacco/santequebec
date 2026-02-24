@@ -42,7 +42,7 @@ export function LoginOrg() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell login-page-shell">
       <main className="main-content login-main-content">
         <section className="hero login-hero">
           <div className="login-brand">
@@ -99,6 +99,7 @@ export function LoginOrg() {
           {error && <p>{error}</p>}
         </section>
       </main>
+      <footer className="login-footer-note">©2026 Cisco Systems, Inc.</footer>
     </div>
   );
 }
