@@ -44,6 +44,9 @@ export function AdminDashboard() {
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
   const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
   const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
+  const [isOrgAccessLogsModalOpen, setIsOrgAccessLogsModalOpen] = useState(false);
+  const [accessLogsOrg, setAccessLogsOrg] = useState<any | null>(null);
+  const [orgAccessLogs, setOrgAccessLogs] = useState<any[]>([]);
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -351,6 +354,31 @@ export function AdminDashboard() {
   };
 
 
+  const openOrgAccessLogs = async (org: any) => {
+    const logs = await api(`/admin/orgs/${org.id}/access-logs`);
+    setAccessLogsOrg(org);
+    setOrgAccessLogs(logs);
+    setIsOrgAccessLogsModalOpen(true);
+  };
+
+  const closeOrgAccessLogsModal = () => {
+    setIsOrgAccessLogsModalOpen(false);
+    setAccessLogsOrg(null);
+    setOrgAccessLogs([]);
+  };
+
+  const resetOrgAccessLogs = async () => {
+    if (!accessLogsOrg) return;
+    const confirmed = window.confirm(`Réinitialiser les journaux d'accès de l'organisation « ${accessLogsOrg.displayName} » ?`);
+    if (!confirmed) return;
+
+    await api(`/admin/orgs/${accessLogsOrg.id}/access-logs`, { method: 'DELETE' });
+    setOrgAccessLogs([]);
+    setAccessLogsOrg((current: any) => (current ? { ...current, loginCount: 0 } : current));
+    await loadOrgs();
+    setMessage(`Journaux d'accès réinitialisés pour « ${accessLogsOrg.displayName} ».`);
+  };
+
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
 
@@ -553,6 +581,7 @@ export function AdminDashboard() {
                   <th>Code Organisation</th>
                   <th>Code Region</th>
                   <th>Nom affiché</th>
+                  <th>Connexions</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -564,6 +593,11 @@ export function AdminDashboard() {
                     </td>
                     <td>{o.regionCode}</td>
                     <td>{o.displayName}</td>
+                    <td>
+                      <button className="link-button" type="button" onClick={() => openOrgAccessLogs(o)}>
+                        {o.loginCount || 0}
+                      </button>
+                    </td>
                     <td>
                       <button className="icon-button" type="button" title="Téléverser un inventaire" onClick={() => openUpload(o.id)}>
                         ⬆️
@@ -801,6 +835,60 @@ export function AdminDashboard() {
       )}
         </div>
       </div>
+
+
+
+      {isOrgAccessLogsModalOpen && accessLogsOrg && (
+        <div className="modal-backdrop" role="presentation" onClick={closeOrgAccessLogsModal}>
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Journaux d'accès" onClick={(event) => event.stopPropagation()}>
+            <div className="stack">
+              <h3>Journaux d&apos;accès · {accessLogsOrg.displayName}</h3>
+              <p>Nombre total de connexions: <strong>{accessLogsOrg.loginCount || 0}</strong></p>
+              <div className="button-row">
+                <button className="button danger" type="button" onClick={resetOrgAccessLogs}>Ré-initialiser les journaux</button>
+                <button className="button secondary" type="button" onClick={closeOrgAccessLogsModal}>Fermer</button>
+              </div>
+
+              {!orgAccessLogs.length && <p>Aucune connexion enregistrée pour cette organisation.</p>}
+              {!!orgAccessLogs.length && (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date/heure</th>
+                        <th>Nom</th>
+                        <th>Courriel</th>
+                        <th>Adresse IP</th>
+                        <th>Fureteur</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orgAccessLogs.map((log) => {
+                        let details: any = {};
+                        try {
+                          details = JSON.parse(log.detailsJson || '{}');
+                        } catch {
+                          details = {};
+                        }
+
+                        return (
+                          <tr key={log.id}>
+                            <td>{new Date(log.createdAt).toLocaleString('fr-CA')}</td>
+                            <td>{log.actorName || '-'}</td>
+                            <td>{log.actorEmail || '-'}</td>
+                            <td>{details.ipAddress || '-'}</td>
+                            <td>{details.userAgent || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
     </AppShell>
   );
