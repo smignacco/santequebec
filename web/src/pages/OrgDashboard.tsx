@@ -160,6 +160,7 @@ export function OrgDashboard() {
   };
 
   const total = data.total || 0;
+  const filteredTotal = data.filteredTotal ?? total;
   const confirmed = data.confirmed || 0;
   const fileStatus = data.fileStatus || '';
   const isLocked = Boolean(data.isLocked);
@@ -168,7 +169,7 @@ export function OrgDashboard() {
   const canResume = fileStatus === 'CONFIRMED' && !isLocked;
   const completion = total ? Math.round((confirmed / total) * 100) : 0;
   const effectivePageSize = pageSize === ALL_PAGE_SIZE ? Math.max(total, 1) : pageSize;
-  const totalPages = Math.max(1, Math.ceil(total / effectivePageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / effectivePageSize));
 
   const goToPage = (nextPage: number) => {
     const boundedPage = Math.min(totalPages, Math.max(1, nextPage));
@@ -197,6 +198,13 @@ export function OrgDashboard() {
     });
     setPage(1);
   };
+
+  const clearFilters = () => {
+    setColumnFilters({});
+    setPage(1);
+  };
+
+  const hasActiveFilters = Object.keys(columnFilters).length > 0;
   const detectCsvDelimiter = (headerLine: string) => {
     const delimiterCandidates = [',', ';', '\t'];
     const scores = delimiterCandidates.map((delimiter) => ({
@@ -421,6 +429,9 @@ export function OrgDashboard() {
             <span>Page {page} / {totalPages}</span>
             <button className="button secondary" type="button" onClick={() => goToPage(page + 1)} disabled={page >= totalPages}>
               Suivant
+            </button>
+            <button className="button secondary" type="button" onClick={clearFilters} disabled={!hasActiveFilters}>
+              Effacer filtre(s)
             </button>
           </div>
 

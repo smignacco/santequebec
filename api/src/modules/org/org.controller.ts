@@ -112,9 +112,10 @@ export class OrgController {
       orderBy: { importedAt: 'desc' }
     });
     if (!file) return { total: 0, confirmed: 0, items: [], visibleColumns: [], fileStatus: null, isLocked: false };
-    const where: any = { inventoryFileId: file.id };
-    if (status) where.status = status;
-    if (q) where.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
+    const baseWhere: any = { inventoryFileId: file.id };
+    if (status) baseWhere.status = status;
+    if (q) baseWhere.OR = [{ assetTag: { contains: q } }, { serial: { contains: q } }, { model: { contains: q } }, { site: { contains: q } }, { location: { contains: q } }];
+    const where: any = { ...baseWhere };
 
     let parsedFilters: Record<string, string> = {};
     if (filters) {
@@ -136,8 +137,9 @@ export class OrgController {
       where.AND = Object.entries(parsedFilters).map(([column, value]) => ({ [column]: value }));
     }
 
-    const total = await this.prisma.inventoryItem.count({ where });
-    const confirmed = await this.prisma.inventoryItem.count({ where: { ...where, status: { in: ['CONFIRMED', 'TO_BE_REMOVED'] } } });
+    const total = await this.prisma.inventoryItem.count({ where: { inventoryFileId: file.id } });
+    const confirmed = await this.prisma.inventoryItem.count({ where: { inventoryFileId: file.id, status: { in: ['CONFIRMED', 'TO_BE_REMOVED'] } } });
+    const filteredTotal = await this.prisma.inventoryItem.count({ where });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
 
     const allItemsForFilters = await this.prisma.inventoryItem.findMany({ where: { inventoryFileId: file.id }, orderBy: { rowNumber: 'asc' } });
@@ -171,7 +173,7 @@ export class OrgController {
       }
     }
 
-    return { total, confirmed, page: p, pageSize: ps, items, visibleColumns, fileStatus: file.status, isLocked: file.isLocked, filterValuesByColumn };
+    return { total, confirmed, filteredTotal, page: p, pageSize: ps, items, visibleColumns, fileStatus: file.status, isLocked: file.isLocked, filterValuesByColumn };
   }
 
   @Patch('items')
