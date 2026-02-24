@@ -585,7 +585,7 @@ export function AdminDashboard() {
             </table>
           </div>
         </section>
-      ) : (
+      ) : !details ? (
         <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Liste des organisations disponibles</h3>
           <div className="table-wrap">
@@ -637,214 +637,214 @@ export function AdminDashboard() {
               </div>
             </section>
           )}
+        </section>
+      ) : !selectedFileId ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <div className="button-row">
+            <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
+            <button className="button secondary" type="button" onClick={() => setDetails(null)}>Retour à la liste</button>
+          </div>
+          <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
+          <div className="stack">
+            <label htmlFor="orgCode"><strong>Code de l&apos;organisation</strong></label>
+            <div className="button-row">
+              <input
+                id="orgCode"
+                className="input"
+                type="text"
+                placeholder="Code organisation"
+                value={orgCodeDraft}
+                onChange={(e) => setOrgCodeDraft(e.target.value)}
+              />
+              <button className="button" type="button" onClick={updateOrgCode}>Enregistrer</button>
+            </div>
+          </div>
+          <div className="stack">
+            <label htmlFor="supportContactEmail"><strong>Contact technique MS Teams</strong></label>
+            <div className="button-row">
+              <input
+                id="supportContactEmail"
+                className="input"
+                type="email"
+                placeholder="Courriel contact support (MS Teams)"
+                value={supportContactDraft}
+                onChange={(e) => setSupportContactDraft(e.target.value)}
+              />
+              <button className="button" type="button" onClick={updateSupportContact}>Enregistrer</button>
+            </div>
+            <p>Valeur actuelle: {details.org.supportContactEmail || 'Non configuré'}</p>
+          </div>
+          <div className="stack">
+            <label htmlFor="orgAccessPin"><strong>NIP de l&apos;organisation</strong></label>
+            <div className="button-row">
+              <input
+                id="orgAccessPin"
+                className="input"
+                type="password"
+                placeholder="Nouveau NIP"
+                value={pinDraft}
+                onChange={(e) => setPinDraft(e.target.value)}
+              />
+              <button className="button" type="button" onClick={updateOrgPin}>Modifier le NIP</button>
+            </div>
+            <p>Le NIP n&apos;est jamais affiché pour des raisons de sécurité.</p>
+          </div>
+          <h4>Inventaires chargés</h4>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Statut</th>
+                  <th>Total</th>
+                  <th>Confirmés</th>
+                  <th>Verrouillage</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.inventoryFiles.map((f: any) => (
+                  <tr key={f.id}>
+                    <td><button className="link-button" type="button" onClick={() => loadInventory(f.id)}>{f.name}</button></td>
+                    <td>{f.status}</td>
+                    <td>{f.rowCount}</td>
+                    <td>{f.confirmedCount}</td>
+                    <td>{f.isLocked ? 'Verrouillé' : 'Déverrouillé'}</td>
+                    <td>
+                      <button className="button danger" type="button" onClick={() => removeInventoryFile(f.id, f.name)}>Supprimer</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <div className="button-row">
+            <h3>Détails de l&apos;inventaire</h3>
+            <button className="button secondary" type="button" onClick={() => setSelectedFileId('')}>Retour à l&apos;organisation</button>
+            <select className="input" value={columnFilter} onChange={(e) => setColumnFilter(e.target.value)}>
+              {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
+            </select>
+            <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={exportSelectedInventory}
+              disabled={!selectedInventory || selectedInventory.status !== 'CONFIRMED'}
+            >
+              Exporter Excel (.xlsx)
+            </button>
+            <button className="button secondary" type="button" onClick={lockInventory} disabled={!selectedInventory || selectedInventory.isLocked}>Verrouiller</button>
+            <button className="button secondary" type="button" onClick={unlockInventory} disabled={!selectedInventory || !selectedInventory.isLocked}>Déverrouiller</button>
+          </div>
 
-          {details && (
-            <section className="panel stack">
-              <h3>Détails de l&apos;organisation: {details.org.displayName}</h3>
-              <p>Code: {details.org.orgCode} · Région: {details.org.regionCode}</p>
-              <div className="stack">
-                <label htmlFor="orgCode"><strong>Code de l&apos;organisation</strong></label>
-                <div className="button-row">
-                  <input
-                    id="orgCode"
-                    className="input"
-                    type="text"
-                    placeholder="Code organisation"
-                    value={orgCodeDraft}
-                    onChange={(e) => setOrgCodeDraft(e.target.value)}
-                  />
-                  <button className="button" type="button" onClick={updateOrgCode}>Enregistrer</button>
-                </div>
-              </div>
-              <div className="stack">
-                <label htmlFor="supportContactEmail"><strong>Contact technique MS Teams</strong></label>
-                <div className="button-row">
-                  <input
-                    id="supportContactEmail"
-                    className="input"
-                    type="email"
-                    placeholder="Courriel contact support (MS Teams)"
-                    value={supportContactDraft}
-                    onChange={(e) => setSupportContactDraft(e.target.value)}
-                  />
-                  <button className="button" type="button" onClick={updateSupportContact}>Enregistrer</button>
-                </div>
-                <p>Valeur actuelle: {details.org.supportContactEmail || 'Non configuré'}</p>
-              </div>
-              <div className="stack">
-                <label htmlFor="orgAccessPin"><strong>NIP de l&apos;organisation</strong></label>
-                <div className="button-row">
-                  <input
-                    id="orgAccessPin"
-                    className="input"
-                    type="password"
-                    placeholder="Nouveau NIP"
-                    value={pinDraft}
-                    onChange={(e) => setPinDraft(e.target.value)}
-                  />
-                  <button className="button" type="button" onClick={updateOrgPin}>Modifier le NIP</button>
-                </div>
-                <p>Le NIP n&apos;est jamais affiché pour des raisons de sécurité.</p>
-              </div>
-              <h4>Inventaires chargés</h4>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nom</th>
-                      <th>Statut</th>
-                      <th>Total</th>
-                      <th>Confirmés</th>
-                      <th>Verrouillage</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {details.inventoryFiles.map((f: any) => (
-                      <tr key={f.id}>
-                        <td><button className="link-button" type="button" onClick={() => loadInventory(f.id)}>{f.name}</button></td>
-                        <td>{f.status}</td>
-                        <td>{f.rowCount}</td>
-                        <td>{f.confirmedCount}</td>
-                        <td>{f.isLocked ? 'Verrouillé' : 'Déverrouillé'}</td>
-                        <td>
-                          <button className="button danger" type="button" onClick={() => removeInventoryFile(f.id, f.name)}>Supprimer</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+          {selectedInventory && <p><strong>État actuel:</strong> {selectedInventory.isLocked ? 'Verrouillé' : 'Déverrouillé'} · Statut: {selectedInventory.status}</p>}
 
-          {selectedFileId && (
-            <section className="panel stack">
-              <div className="button-row">
-                <h3>Détails de l&apos;inventaire</h3>
-                <select className="input" value={columnFilter} onChange={(e) => setColumnFilter(e.target.value)}>
-                  {availableColumns.map((column) => <option key={column} value={column}>{column === 'ALL' ? 'Toutes les colonnes' : column}</option>)}
-                </select>
-                <button className="button" type="button" onClick={publishInventory}>Publier pour validation</button>
+          <div className="stack">
+            <h4>Colonnes affichées</h4>
+            <p>Activez les colonnes puis cliquez-déplacez les étiquettes ci-dessous pour réordonner l&apos;affichage.</p>
+            <div className="button-row">
+              {inventoryDbColumns.map((column) => (
+                <label key={column} className="link-button" style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(column)}
+                    onChange={() => toggleVisibleColumn(column)}
+                  />
+                  {column}
+                </label>
+              ))}
+            </div>
+            <div className="button-row">
+              {visibleColumns.map((column) => (
                 <button
+                  key={column}
                   className="button secondary"
                   type="button"
-                  onClick={exportSelectedInventory}
-                  disabled={!selectedInventory || selectedInventory.status !== 'CONFIRMED'}
+                  draggable
+                  onDragStart={() => setDraggedColumn(column)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (!draggedColumn) return;
+                    moveColumn(draggedColumn, column);
+                    setDraggedColumn(null);
+                  }}
+                  onDragEnd={() => setDraggedColumn(null)}
                 >
-                  Exporter Excel (.xlsx)
+                  ↕ {column}
                 </button>
-                <button className="button secondary" type="button" onClick={lockInventory} disabled={!selectedInventory || selectedInventory.isLocked}>Verrouiller</button>
-                <button className="button secondary" type="button" onClick={unlockInventory} disabled={!selectedInventory || !selectedInventory.isLocked}>Déverrouiller</button>
-              </div>
+              ))}
+            </div>
+          </div>
 
-              {selectedInventory && <p><strong>État actuel:</strong> {selectedInventory.isLocked ? 'Verrouillé' : 'Déverrouillé'} · Statut: {selectedInventory.status}</p>}
-
-              <div className="stack">
-                <h4>Colonnes affichées</h4>
-                <p>Activez les colonnes puis cliquez-déplacez les étiquettes ci-dessous pour réordonner l&apos;affichage.</p>
-                <div className="button-row">
-                  {inventoryDbColumns.map((column) => (
-                    <label key={column} className="link-button" style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.includes(column)}
-                        onChange={() => toggleVisibleColumn(column)}
-                      />
-                      {column}
-                    </label>
-                  ))}
-                </div>
-                <div className="button-row">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
                   {visibleColumns.map((column) => (
-                    <button
-                      key={column}
-                      className="button secondary"
-                      type="button"
-                      draggable
-                      onDragStart={() => setDraggedColumn(column)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => {
-                        if (!draggedColumn) return;
-                        moveColumn(draggedColumn, column);
-                        setDraggedColumn(null);
-                      }}
-                      onDragEnd={() => setDraggedColumn(null)}
-                    >
-                      ↕ {column}
-                    </button>
+                    <th key={column}>{column}</th>
                   ))}
-                </div>
-              </div>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => (
+                  <tr key={item.id}>
+                    {visibleColumns.map((column) => (
+                      <td key={`${item.id}-${column}`}>{item[column] ?? '-'}</td>
+                    ))}
+                    <td>
+                      <button className="button danger" type="button" onClick={() => removeItem(item.id)}>Retirer</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
+          <div className="stack">
+            <h4>Journal d'audit de soumission</h4>
+            {!inventoryAuditLogs.length && <p>Aucune soumission enregistrée pour cet inventaire.</p>}
+            {!!inventoryAuditLogs.length && (
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      {visibleColumns.map((column) => (
-                        <th key={column}>{column}</th>
-                      ))}
                       <th>Action</th>
+                      <th>Usager</th>
+                      <th>Courriel</th>
+                      <th>Date/heure</th>
+                      <th>Adresse IP</th>
+                      <th>Navigateur</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredItems.map((item) => (
-                      <tr key={item.id}>
-                        {visibleColumns.map((column) => (
-                          <td key={`${item.id}-${column}`}>{item[column] ?? '-'}</td>
-                        ))}
-                        <td>
-                          <button className="button danger" type="button" onClick={() => removeItem(item.id)}>Retirer</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {inventoryAuditLogs.map((log) => {
+                      let details: any = {};
+                      try {
+                        details = JSON.parse(log.detailsJson || '{}');
+                      } catch {
+                        details = {};
+                      }
+
+                      return (
+                        <tr key={log.id}>
+                          <td>{log.action}</td>
+                          <td>{log.actorName || '-'}</td>
+                          <td>{log.actorEmail || '-'}</td>
+                          <td>{new Date(log.createdAt).toLocaleString('fr-CA')}</td>
+                          <td>{details.ipAddress || '-'}</td>
+                          <td>{details.userAgent || '-'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-
-              <div className="stack">
-                <h4>Journal d'audit de soumission</h4>
-                {!inventoryAuditLogs.length && <p>Aucune soumission enregistrée pour cet inventaire.</p>}
-                {!!inventoryAuditLogs.length && (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Action</th>
-                          <th>Usager</th>
-                          <th>Courriel</th>
-                          <th>Date/heure</th>
-                          <th>Adresse IP</th>
-                          <th>Navigateur</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {inventoryAuditLogs.map((log) => {
-                          let details: any = {};
-                          try {
-                            details = JSON.parse(log.detailsJson || '{}');
-                          } catch {
-                            details = {};
-                          }
-
-                          return (
-                            <tr key={log.id}>
-                              <td>{log.action}</td>
-                              <td>{log.actorName || '-'}</td>
-                              <td>{log.actorEmail || '-'}</td>
-                              <td>{new Date(log.createdAt).toLocaleString('fr-CA')}</td>
-                              <td>{details.ipAddress || '-'}</td>
-                              <td>{details.userAgent || '-'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
+            )}
+          </div>
         </section>
       )}
         </div>
