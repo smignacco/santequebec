@@ -41,6 +41,11 @@ model Organization {
 model AppSettings {
   id                  String   @id
   welcomeVideoUrl     String?
+  webexEnabled        Boolean  @default(false)
+  webexBotToken       String?
+  webexRoomId         String?
+  webexNotifyOnSubmit Boolean  @default(true)
+  webexNotifyOnHelp   Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
