@@ -139,7 +139,7 @@ export function LoginOrg() {
               {fieldErrors.username && <p className="form-error">{fieldErrors.username}</p>}
               <input className="input" placeholder="Mot de passe admin" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required />
               {fieldErrors.password && <p className="form-error">{fieldErrors.password}</p>}
-              <button className="button" type="submit" disabled={isSubmittingAdmin}>{isSubmittingAdmin ? 'Connexion…' : 'Accéder à l&apos;administration'}</button>
+              <button className="button" type="submit" disabled={isSubmittingAdmin}>{isSubmittingAdmin ? 'Connexion…' : "Accéder à l'administration"}</button>
             </form>
           )}
 
