@@ -6,12 +6,13 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { extname, join } from 'path';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../../common/prisma.service';
+import { WebexService } from '../webex/webex.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/admin')
 @UseGuards(JwtAuthGuard)
 export class AdminController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private webexService: WebexService) {}
   private static readonly WELCOME_VIDEO_DIR = join(process.cwd(), 'public', 'uploads', 'welcome-video');
   private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
     'rowNumber',
@@ -86,7 +87,15 @@ export class AdminController {
   async getAppSettings(@Req() req: any) {
     this.assertAdmin(req);
     const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
-    return { welcomeVideoUrl: settings?.welcomeVideoUrl || '' };
+    return {
+      welcomeVideoUrl: settings?.welcomeVideoUrl || '',
+      webexEnabled: Boolean(settings?.webexEnabled),
+      webexBotToken: settings?.webexBotToken || '',
+      webexRoomId: settings?.webexRoomId || '',
+      webexNotifyOnSubmit: settings?.webexNotifyOnSubmit ?? true,
+      webexNotifyOnHelp: settings?.webexNotifyOnHelp ?? true,
+      webexNotifyOnLogin: settings?.webexNotifyOnLogin ?? false
+    };
   }
 
   @Post('app-settings/welcome-video-file')
@@ -120,6 +129,55 @@ export class AdminController {
     });
 
     return { welcomeVideoUrl: settings.welcomeVideoUrl || '' };
+  }
+
+
+  @Patch('app-settings/webex')
+  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean }) {
+    this.assertAdmin(req);
+
+    const webexBotToken = typeof body.webexBotToken === 'string' && body.webexBotToken.trim()
+      ? body.webexBotToken.trim()
+      : null;
+    const webexRoomId = typeof body.webexRoomId === 'string' && body.webexRoomId.trim()
+      ? body.webexRoomId.trim()
+      : null;
+
+    const settings = await this.prisma.appSettings.upsert({
+      where: { id: 'global' },
+      update: {
+        webexEnabled: Boolean(body.webexEnabled),
+        webexBotToken,
+        webexRoomId,
+        webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
+        webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
+      },
+      create: {
+        id: 'global',
+        webexEnabled: Boolean(body.webexEnabled),
+        webexBotToken,
+        webexRoomId,
+        webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
+        webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
+      }
+    });
+
+    return {
+      webexEnabled: settings.webexEnabled,
+      webexBotToken: settings.webexBotToken || '',
+      webexRoomId: settings.webexRoomId || '',
+      webexNotifyOnSubmit: settings.webexNotifyOnSubmit,
+      webexNotifyOnHelp: settings.webexNotifyOnHelp,
+      webexNotifyOnLogin: settings.webexNotifyOnLogin
+    };
+  }
+
+  @Post('app-settings/webex/test')
+  async testWebexSettings(@Req() req: any) {
+    this.assertAdmin(req);
+    return this.webexService.validateConnection();
   }
 
   @Patch('app-settings/welcome-video-url')

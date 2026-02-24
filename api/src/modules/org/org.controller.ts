@@ -1,13 +1,14 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { WebexService } from '../webex/webex.service';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
 
 @Controller('api/org')
 @UseGuards(JwtAuthGuard)
 export class OrgController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private webexService: WebexService) {}
   private assertOrg(req: any) { if (req.user?.role !== 'ORG_USER') throw new UnauthorizedException(); }
   private static readonly MANUAL_EDITABLE_FIELDS = ['serial', 'serialNumber', 'productId', 'productDescription'] as const;
 
@@ -326,6 +327,37 @@ export class OrgController {
     return item;
   }
 
+  @Post('help-request')
+  async helpRequest(@Req() req: any) {
+    this.assertOrg(req);
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: req.user.organizationId } });
+    const auditContext = this.getAuditContext(req);
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'ORG_ACCESS',
+        scopeId: org.id,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'ORG_HELP_REQUESTED',
+        detailsJson: JSON.stringify(auditContext)
+      }
+    });
+
+    await this.webexService.notifyHelpRequested({
+      orgName: org.displayName,
+      orgCode: org.orgCode,
+      requesterName: req.user.name,
+      requesterEmail: req.user.email,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      requestedAt: auditContext.submittedAt
+    });
+
+    return { ok: true };
+  }
+
   @Post('submit')
   async submit(@Req() req: any) {
     this.assertOrg(req);
@@ -345,7 +377,14 @@ export class OrgController {
     }
 
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'CONFIRMED' } });
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: req.user.organizationId } });
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_SUBMIT', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
+    await this.webexService.notifyInventorySubmitted({
+      orgName: org.displayName,
+      orgCode: org.orgCode,
+      fileId: file.id,
+      submittedAt: new Date().toISOString()
+    });
     return file;
   }
 
