@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX';
 
 const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ORG_PIN_MAX_LENGTH = 9;
@@ -47,6 +47,8 @@ export function AdminDashboard() {
   const [webexNotifyOnSubmit, setWebexNotifyOnSubmit] = useState(true);
   const [webexNotifyOnHelp, setWebexNotifyOnHelp] = useState(true);
   const [webexNotifyOnLogin, setWebexNotifyOnLogin] = useState(false);
+  const [webexSpaces, setWebexSpaces] = useState<Array<{ id: string; title: string }>>([]);
+  const [isLoadingWebexSpaces, setIsLoadingWebexSpaces] = useState(false);
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
   const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
   const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
@@ -409,6 +411,21 @@ export function AdminDashboard() {
     setMessage(out?.message || (out?.ok ? 'Connexion Webex valide.' : 'Échec de connexion Webex.'));
   };
 
+  const loadWebexSpaces = async () => {
+    setIsLoadingWebexSpaces(true);
+    try {
+      const token = webexBotToken.trim();
+      const query = token ? `?botToken=${encodeURIComponent(token)}` : '';
+      const out = await api(`/admin/app-settings/webex/spaces${query}`);
+      setWebexSpaces(Array.isArray(out?.spaces) ? out.spaces : []);
+      if (out?.message) {
+        setMessage(out.message);
+      }
+    } finally {
+      setIsLoadingWebexSpaces(false);
+    }
+  };
+
 
 
   const openOrgAccessLogs = async (org: any) => {
@@ -532,6 +549,7 @@ export function AdminDashboard() {
           <h3>Navigation</h3>
           <div className="stack admin-nav-links">
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('VIDEO')}>Vidéo informationnelle</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('WEBEX')}>Intégration Webex Teams</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('LIST')}>Liste des organisations</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('CREATE')}>Créer une organisation</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('ADMINS')}>Gestion des administrateurs</button>
@@ -567,14 +585,26 @@ export function AdminDashboard() {
               {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
             </button>
           </div>
-
-          <hr />
-          <h4>Notifications Webex Teams</h4>
+        </section>
+      ) : view === 'WEBEX' ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <h3>Intégration Webex Teams</h3>
           <label className="button-row">
             <input type="checkbox" checked={webexEnabled} onChange={(e) => setWebexEnabled(e.target.checked)} />
             <span>Activer l&apos;intégration Webex</span>
           </label>
           <input className="input" type="password" placeholder="Jeton Bot Webex" value={webexBotToken} onChange={(e) => setWebexBotToken(e.target.value)} />
+          <div className="button-row">
+            <select className="input" value={webexRoomId} onChange={(e) => setWebexRoomId(e.target.value)}>
+              <option value="">Sélectionner une Space Webex</option>
+              {webexSpaces.map((space) => (
+                <option key={space.id} value={space.id}>{space.title} ({space.id})</option>
+              ))}
+            </select>
+            <button className="button secondary" type="button" onClick={loadWebexSpaces} disabled={isLoadingWebexSpaces}>
+              {isLoadingWebexSpaces ? 'Chargement...' : 'Charger les Spaces'}
+            </button>
+          </div>
           <input className="input" placeholder="Room/Space ID Webex" value={webexRoomId} onChange={(e) => setWebexRoomId(e.target.value)} />
           <label className="button-row">
             <input type="checkbox" checked={webexNotifyOnSubmit} onChange={(e) => setWebexNotifyOnSubmit(e.target.checked)} />
