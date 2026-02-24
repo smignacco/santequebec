@@ -413,6 +413,18 @@ export function AdminDashboard() {
     });
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const navigateToMainSection = (nextView: typeof view) => {
+    setView(nextView);
+    window.requestAnimationFrame(() => {
+      scrollToSection('admin-main-section');
+    });
+  };
+
 
   return (
     <AppShell>
@@ -421,53 +433,55 @@ export function AdminDashboard() {
         <p>Gestion des organisations, inventaires et publication pour validation.</p>
       </section>
 
-      <section className="panel stack admin-tile">
-        <h3>Organisation</h3>
-        <div className="button-row">
-          <button className={`button ${view === 'LIST' ? '' : 'secondary'}`} type="button" onClick={() => setView('LIST')}>
-            Liste
-          </button>
-          <button className={`button ${view === 'CREATE' ? '' : 'secondary'}`} type="button" onClick={() => setView('CREATE')}>
-            Créer
-          </button>
-          <button className={`button ${view === 'ADMINS' ? '' : 'secondary'}`} type="button" onClick={() => setView('ADMINS')}>
-            Administrateurs
-          </button>
-        </div>
-      </section>
+      {message && (
+        <section className="panel admin-message-tile">
+          <p>{message}</p>
+        </section>
+      )}
 
-
-      <section className="panel stack admin-tile">
-        <h3>Paramètres globaux</h3>
-        <label className="stack">
-          Téléverser la vidéo explicative (.mp4)
-          <input
-            className="input"
-            type="file"
-            accept="video/mp4,.mp4"
-            onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
-          />
-        </label>
-        {welcomeVideoUrlDraft ? (
-          <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
-        ) : (
-          <p>Aucune vidéo explicative configurée.</p>
-        )}
-        {isUploadingWelcomeVideo && (
-          <div className="stack" aria-live="polite">
-            <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
-            <progress max={100} value={welcomeVideoUploadPercent} />
+      <div className="admin-layout">
+        <aside className="panel stack admin-nav">
+          <h3>Navigation</h3>
+          <div className="stack admin-nav-links">
+            <button className="button secondary" type="button" onClick={() => scrollToSection('admin-global-settings')}>Paramètres globaux</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('LIST')}>Liste des organisations</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('CREATE')}>Créer une organisation</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('ADMINS')}>Gestion des administrateurs</button>
           </div>
-        )}
-        <div className="button-row">
-          <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
-            {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
-          </button>
-        </div>
-      </section>
+        </aside>
+
+        <div className="stack admin-content">
+          <section id="admin-global-settings" className="panel stack admin-tile">
+            <h3>Paramètres globaux</h3>
+            <label className="stack">
+              Téléverser la vidéo explicative (.mp4)
+              <input
+                className="input"
+                type="file"
+                accept="video/mp4,.mp4"
+                onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
+              />
+            </label>
+            {welcomeVideoUrlDraft ? (
+              <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
+            ) : (
+              <p>Aucune vidéo explicative configurée.</p>
+            )}
+            {isUploadingWelcomeVideo && (
+              <div className="stack" aria-live="polite">
+                <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
+                <progress max={100} value={welcomeVideoUploadPercent} />
+              </div>
+            )}
+            <div className="button-row">
+              <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
+                {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
+              </button>
+            </div>
+          </section>
 
       {view === 'CREATE' ? (
-        <section className="panel stack">
+        <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Créer une organisation</h3>
           <form className="stack" onSubmit={createOrg}>
             <input className="input" placeholder="Code Organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} required />
@@ -490,7 +504,7 @@ export function AdminDashboard() {
           </form>
         </section>
       ) : view === 'ADMINS' ? (
-        <section className="panel stack">
+        <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Gestion des administrateurs</h3>
           <p>Ajoutez des comptes administrateurs qui pourront se connecter au portail d&apos;administration.</p>
 
@@ -530,7 +544,7 @@ export function AdminDashboard() {
           </div>
         </section>
       ) : (
-        <section className="panel stack">
+        <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Liste des organisations disponibles</h3>
           <div className="table-wrap">
             <table>
@@ -785,12 +799,9 @@ export function AdminDashboard() {
           )}
         </section>
       )}
+        </div>
+      </div>
 
-      {message && (
-        <section className="panel">
-          <p>{message}</p>
-        </section>
-      )}
     </AppShell>
   );
 }
