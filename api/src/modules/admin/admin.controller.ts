@@ -180,6 +180,12 @@ export class AdminController {
     return this.webexService.validateConnection();
   }
 
+  @Get('app-settings/webex/spaces')
+  async listWebexSpaces(@Req() req: any, @Query('botToken') botToken?: string) {
+    this.assertAdmin(req);
+    return this.webexService.listRooms(botToken);
+  }
+
   @Patch('app-settings/welcome-video-url')
   async updateWelcomeVideoUrl(@Req() req: any, @Body() body: { welcomeVideoUrl?: string | null }) {
     this.assertAdmin(req);

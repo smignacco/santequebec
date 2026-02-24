@@ -4,6 +4,11 @@ import { PrismaService } from '../../common/prisma.service';
 @Injectable()
 export class WebexService {
   private readonly logger = new Logger(WebexService.name);
+  private readonly easternCanadaFormatter = new Intl.DateTimeFormat('fr-CA', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    timeZone: 'America/Toronto'
+  });
 
   constructor(private prisma: PrismaService) {}
 
@@ -39,6 +44,14 @@ export class WebexService {
     }
   }
 
+  private formatEasternCanadaDate(rawValue: string) {
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) {
+      return rawValue;
+    }
+    return `${this.easternCanadaFormatter.format(parsed)} (HE Canada)`;
+  }
+
   async notifyInventorySubmitted(payload: { orgName: string; orgCode: string; fileId: string; submittedAt: string }) {
     const settings = await this.loadSettings();
     if (!settings?.webexEnabled || !settings.webexNotifyOnSubmit) return;
@@ -47,7 +60,7 @@ export class WebexService {
       '📦 **Inventaire soumis**',
       `- Organisation: **${payload.orgName}** (${payload.orgCode})`,
       `- Inventaire: \`${payload.fileId}\``,
-      `- Date: ${payload.submittedAt}`
+      `- Date: ${this.formatEasternCanadaDate(payload.submittedAt)}`
     ].join('\n'));
   }
 
@@ -61,7 +74,7 @@ export class WebexService {
       `- Usager: **${payload.requesterName}** (${payload.requesterEmail})`,
       `- Adresse IP: ${payload.ipAddress || 'N/A'}`,
       `- User-Agent: ${payload.userAgent || 'N/A'}`,
-      `- Date: ${payload.requestedAt}`
+      `- Date: ${this.formatEasternCanadaDate(payload.requestedAt)}`
     ].join('\n'));
   }
 
@@ -75,8 +88,41 @@ export class WebexService {
       `- Usager: **${payload.requesterName}** (${payload.requesterEmail})`,
       `- Adresse IP: ${payload.ipAddress || 'N/A'}`,
       `- User-Agent: ${payload.userAgent || 'N/A'}`,
-      `- Date: ${payload.loggedAt}`
+      `- Date: ${this.formatEasternCanadaDate(payload.loggedAt)}`
     ].join('\n'));
+  }
+
+  async listRooms(botToken?: string | null) {
+    const settings = await this.loadSettings();
+    const token = botToken?.trim() || settings?.webexBotToken || '';
+    if (!token) {
+      return { ok: false, message: 'Jeton Bot Webex requis.', spaces: [] as Array<{ id: string; title: string }> };
+    }
+
+    try {
+      const response = await fetch('https://webexapis.com/v1/rooms?max=1000&sortBy=lastactivity', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        return { ok: false, message: `Échec Webex (${response.status}): ${body}`, spaces: [] as Array<{ id: string; title: string }> };
+      }
+
+      const payload = await response.json() as { items?: Array<{ id?: string; title?: string }> };
+      const spaces = (payload.items || [])
+        .filter((item) => Boolean(item?.id))
+        .map((item) => ({
+          id: item.id as string,
+          title: item.title?.trim() || 'Sans titre'
+        }));
+
+      return { ok: true, message: `${spaces.length} espaces trouvés.`, spaces };
+    } catch (error) {
+      return { ok: false, message: `Erreur Webex: ${(error as Error).message}`, spaces: [] as Array<{ id: string; title: string }> };
+    }
   }
 
   async validateConnection() {
