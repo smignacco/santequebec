@@ -1,0 +1,35 @@
+# Delta OpenShift pour persister les uploads vidéo sans réappliquer tout le manifest.
+#
+# Appliquer uniquement ce delta (sans réécrire le manifest complet):
+#   oc apply -f openshift/delta-welcome-video-storage.yaml
+#
+# NOTE: ce fichier ne contient que les ressources/champs nécessaires
+# (PVC + ajout du volume/volumeMount sur le Deployment existant).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: santequebec-app-uploads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: santequebec
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          volumeMounts:
+            - name: app-uploads
+              mountPath: /opt/app/api/public/uploads
+      volumes:
+        - name: app-uploads
+          persistentVolumeClaim:
+            claimName: santequebec-app-uploads
