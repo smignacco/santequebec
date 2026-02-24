@@ -28,6 +28,10 @@ export function OrgDashboard() {
   const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+  const [isBusyAction, setIsBusyAction] = useState('');
+  const [csvPreview, setCsvPreview] = useState<string[][]>([]);
+  const [csvReport, setCsvReport] = useState<{ matched: number; created: number; ignored: number } | null>(null);
+  const [quickFilter, setQuickFilter] = useState<'ALL' | 'NEEDS_CLARIFICATION' | 'TO_BE_REMOVED' | 'MANUAL_ONLY' | 'UNVALIDATED'>('ALL');
 
   const getResolvedWelcomeVideoUrl = () => {
     if (!welcomeVideoUrl) return null;
@@ -75,6 +79,17 @@ export function OrgDashboard() {
     return api(`/org/items?${query.toString()}`).then(setData);
   };
 
+  const runBusyAction = async (key: string, callback: () => Promise<void>) => {
+    if (isBusyAction) return;
+    setIsBusyAction(key);
+    setMessage('');
+    try {
+      await callback();
+    } finally {
+      setIsBusyAction('');
+    }
+  };
+
   useEffect(() => {
     load(page, pageSize, columnFilters);
   }, [page, pageSize, columnFilters]);
@@ -107,56 +122,72 @@ export function OrgDashboard() {
 
   const patch = async (id: string, status: string) => {
     if (isLocked) return;
-    await api(`/org/items/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
-    await load(page, pageSize);
+    await runBusyAction(`patch-${id}-${status}`, async () => {
+      await api(`/org/items/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await load(page, pageSize);
+      setMessage('Statut mis à jour.');
+    });
   };
 
   const bulkPatch = async (ids: string[], status: string) => {
     if (isLocked || !ids.length) return;
-    await api('/org/items', { method: 'PATCH', body: JSON.stringify({ ids, status }) });
-    await load(page, pageSize);
+    await runBusyAction(`bulk-${status}`, async () => {
+      await api('/org/items', { method: 'PATCH', body: JSON.stringify({ ids, status }) });
+      await load(page, pageSize);
+      setMessage('Mise à jour en lot appliquée.');
+    });
   };
 
   const saveProgress = async () => {
-    await load(page, pageSize);
-    setMessage('Statut: progression sauvegardée. Vous pouvez reprendre plus tard.');
+    await runBusyAction('save-progress', async () => {
+      await load(page, pageSize);
+      setMessage('Statut: progression sauvegardée. Vous pouvez reprendre plus tard.');
+    });
   };
 
   const addManualItem = async () => {
     if (isLocked || !manualSerialNumber.trim()) return;
-    await api('/org/items/manual', {
-      method: 'POST',
-      body: JSON.stringify({
-        serialNumber: manualSerialNumber,
-        productId: manualProductId,
-        productDescription: manualProductDescription
-      })
+    await runBusyAction('manual-add', async () => {
+      await api('/org/items/manual', {
+        method: 'POST',
+        body: JSON.stringify({
+          serialNumber: manualSerialNumber,
+          productId: manualProductId,
+          productDescription: manualProductDescription
+        })
+      });
+      setManualSerialNumber('');
+      setManualProductId('');
+      setManualProductDescription('');
+      setShowManualModal(false);
+      setMessage('Item ajouté manuellement avec statut CONFIRMED.');
+      await load(page, pageSize);
     });
-    setManualSerialNumber('');
-    setManualProductId('');
-    setManualProductDescription('');
-    setShowManualModal(false);
-    setMessage('Item ajouté manuellement avec statut CONFIRMED.');
-    await load(page, pageSize);
   };
 
   const editManualItem = async (id: string, payload: { serialNumber: string; productId?: string; productDescription?: string }) => {
     if (isLocked) return;
-    await api(`/org/items/${id}/manual-fields`, { method: 'PATCH', body: JSON.stringify(payload) });
-    setMessage('Item manuel mis à jour.');
-    await load(page, pageSize);
+    await runBusyAction(`manual-edit-${id}`, async () => {
+      await api(`/org/items/${id}/manual-fields`, { method: 'PATCH', body: JSON.stringify(payload) });
+      setMessage('Item manuel mis à jour.');
+      await load(page, pageSize);
+    });
   };
 
   const submit = async () => {
-    await api('/org/submit', { method: 'POST' });
-    setMessage('Statut: la liste a été validée et soumise correctement.');
-    await load(page, pageSize);
+    await runBusyAction('submit', async () => {
+      await api('/org/submit', { method: 'POST' });
+      setMessage('Statut: la liste a été validée et soumise correctement.');
+      await load(page, pageSize);
+    });
   };
 
   const resumeValidation = async () => {
-    await api('/org/resume-validation', { method: 'POST' });
-    setMessage('Statut: la liste est remise en cours de validation. Vous pouvez faire des ajustements.');
-    await load(page, pageSize);
+    await runBusyAction('resume-validation', async () => {
+      await api('/org/resume-validation', { method: 'POST' });
+      setMessage('Statut: la liste est remise en cours de validation. Vous pouvez faire des ajustements.');
+      await load(page, pageSize);
+    });
   };
 
   const total = data.total || 0;
@@ -205,6 +236,7 @@ export function OrgDashboard() {
   };
 
   const hasActiveFilters = Object.keys(columnFilters).length > 0;
+  const isLoading = Boolean(isBusyAction);
   const detectCsvDelimiter = (headerLine: string) => {
     const delimiterCandidates = [',', ';', '\t'];
     const scores = delimiterCandidates.map((delimiter) => ({
@@ -275,6 +307,7 @@ export function OrgDashboard() {
     setCsvError('');
     setCsvHeaders(headers);
     setCsvRows(rows);
+    setCsvPreview(rows.slice(0, 5));
     const foundSerialColumn = headers.find((header) => /serial|série|serie/i.test(header));
     const foundProductIdColumn = headers.find((header) => /product.?id|produit.?id|sku/i.test(header));
     setSerialColumn(foundSerialColumn || headers[0] || '');
@@ -309,25 +342,29 @@ export function OrgDashboard() {
       return;
     }
 
-    const result = await api('/org/confirm-serial-list', {
-      method: 'POST',
-      body: JSON.stringify({ rows })
-    });
+    await runBusyAction('csv-submit', async () => {
+      const result = await api('/org/confirm-serial-list', {
+        method: 'POST',
+        body: JSON.stringify({ rows })
+      });
 
-    setMessage(`Liste traitée: ${result.matched} trouvé(s) dans l'inventaire, ${result.created} ajouté(s) manuellement.`);
-    setShowCsvModal(false);
-    setCsvHeaders([]);
-    setCsvRows([]);
-    setSerialColumn('');
-    setProductIdColumn('');
-    setCsvError('');
-    await load(page, pageSize);
+      const ignored = rows.length - (result.matched + result.created);
+      setCsvReport({ matched: result.matched, created: result.created, ignored: Math.max(0, ignored) });
+      setMessage(`Liste traitée: ${result.matched} trouvé(s), ${result.created} ajouté(s), ${Math.max(0, ignored)} ignoré(s).`);
+      setShowCsvModal(false);
+      setCsvHeaders([]);
+      setCsvRows([]);
+      setCsvPreview([]);
+      setSerialColumn('');
+      setProductIdColumn('');
+      setCsvError('');
+      await load(page, pageSize);
+    });
   };
 
   const openWelcomeVideo = () => {
     if (!welcomeVideoUrl) return;
     setDoNotShowAgain(false);
-    setWelcomeVideoCanPlay(false);
     setShowWelcomeModal(true);
   };
 
@@ -347,6 +384,22 @@ export function OrgDashboard() {
     setShowWelcomeModal(false);
   };
 
+  const remainingToValidate = Math.max(total - confirmed, 0);
+  const submitBlockerReason = isLocked
+    ? 'L’inventaire est verrouillé par un administrateur.'
+    : fileStatus !== 'PUBLISHED' && fileStatus !== 'SUBMITTED'
+      ? 'L’inventaire doit être publié avant soumission.'
+      : !allItemsValidated
+        ? `Validez encore ${remainingToValidate} item(s) avant de soumettre.`
+        : '';
+
+  const displayedItems = (data.items || []).filter((item: any) => {
+    if (quickFilter === 'ALL') return true;
+    if (quickFilter === 'MANUAL_ONLY') return Boolean(item.manualEntry);
+    if (quickFilter === 'UNVALIDATED') return item.status !== 'CONFIRMED';
+    return item.status === quickFilter;
+  });
+
 
   return (
     <AppShell contentClassName="main-content-wide">
@@ -358,7 +411,7 @@ export function OrgDashboard() {
           </div>
           <div className="hero-actions">
             <button className="button secondary" type="button" onClick={openWelcomeVideo} disabled={!welcomeVideoUrl}>
-              Video Explicative
+              Vidéo explicative
             </button>
             <a
               className={`button secondary teams-help-button ${teamsHelpLink ? '' : 'is-disabled'}`}
@@ -394,25 +447,34 @@ export function OrgDashboard() {
             <div className="progress-value" style={{ width: `${completion}%` }} />
           </div>
           <p>{confirmed} validés sur {total} ({completion}%)</p>
+          <ul>
+            <li>{remainingToValidate === 0 ? '✅ Tous les items sont validés.' : `🔎 ${remainingToValidate} item(s) restent à traiter.`}</li>
+            <li>{fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED' ? '✅ Inventaire publiable/soumissible.' : '⏳ En attente de publication administrateur.'}</li>
+            <li>{isLocked ? '⛔ Inventaire verrouillé.' : '✅ Modifications autorisées.'}</li>
+          </ul>
           {fileStatus === 'CONFIRMED' && <p><strong>Statut:</strong> Confirmé auprès des administrateurs.</p>}
           {isLocked && <p><strong>Statut:</strong> Inventaire verrouillé par un administrateur.</p>}
+          {!!submitBlockerReason && <p className="form-error"><strong>Soumission bloquée:</strong> {submitBlockerReason}</p>}
         </div>
 
         <div className="button-row">
-          <button className="button" onClick={submit} disabled={!canSubmit || isLocked}>Soumettre l&apos;inventaire</button>
-          <button className="button secondary" onClick={resumeValidation} disabled={!canResume}>Remettre en cours de validation</button>
-          <button className="button secondary" onClick={saveProgress} disabled={isLocked}>Sauvegarder la progression</button>
+          <button className="button" onClick={submit} disabled={!canSubmit || isLocked || isLoading}>{isBusyAction === 'submit' ? 'Soumission…' : 'Soumettre l&apos;inventaire'}</button>
+          <button className="button secondary" onClick={resumeValidation} disabled={!canResume || isLoading}>{isBusyAction === 'resume-validation' ? 'Mise à jour…' : 'Remettre en cours de validation'}</button>
+          <button className="button secondary" onClick={saveProgress} disabled={isLocked || isLoading}>{isBusyAction === 'save-progress' ? 'Sauvegarde…' : 'Sauvegarder la progression'}</button>
           <button
             className="button secondary"
             onClick={async () => {
-              await load(page, pageSize);
-              setMessage('Statut: inventaire actualisé.');
+              await runBusyAction('refresh', async () => {
+                await load(page, pageSize);
+                setMessage('Statut: inventaire actualisé.');
+              });
             }}
+            disabled={isLoading}
           >
-            Actualiser
+            {isBusyAction === 'refresh' ? 'Actualisation…' : 'Actualiser'}
           </button>
-          <button className="button secondary" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked}>Ajouter un item manuellement</button>
-          <button className="button secondary" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked}>Chager .csv</button>
+          <button className="button secondary" type="button" onClick={() => setShowManualModal(true)} disabled={isLocked || isLoading}>Ajouter un item manuellement</button>
+          <button className="button secondary" type="button" onClick={() => setShowCsvModal(true)} disabled={isLocked || isLoading}>Charger un .csv</button>
           <div className="status-badges ml-auto">
             <span className={`badge badge-centered ${fileStatus === 'CONFIRMED' ? 'badge-success' : 'badge-danger'}`}>
               {fileStatus === 'CONFIRMED' ? 'Soumis' : 'Non Soumis'}
@@ -433,6 +495,13 @@ export function OrgDashboard() {
             <button className="button secondary" type="button" onClick={clearFilters} disabled={!hasActiveFilters}>
               Effacer filtre(s)
             </button>
+            <select value={quickFilter} onChange={(event) => setQuickFilter(event.target.value as typeof quickFilter)}>
+              <option value="ALL">Tous</option>
+              <option value="UNVALIDATED">À traiter</option>
+              <option value="NEEDS_CLARIFICATION">À clarifier</option>
+              <option value="TO_BE_REMOVED">À retirer</option>
+              <option value="MANUAL_ONLY">Ajouts manuels</option>
+            </select>
           </div>
 
           <label className="rows-control">
@@ -447,12 +516,19 @@ export function OrgDashboard() {
           </label>
         </div>
 
-        <InventoryTable items={data.items || []} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked} columnFilters={columnFilters} onFilterChange={onColumnFilterChange} filterValuesByColumn={data.filterValuesByColumn || {}} />
+        <InventoryTable items={displayedItems} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked && !isLoading} columnFilters={columnFilters} onFilterChange={onColumnFilterChange} filterValuesByColumn={data.filterValuesByColumn || {}} isBusy={isLoading} />
       </section>
 
       {message && (
-        <section className="panel">
+        <section className="panel toast-success" role="status" aria-live="polite">
           <p>{message}</p>
+        </section>
+      )}
+
+      {csvReport && (
+        <section className="panel stack" role="status" aria-live="polite">
+          <strong>Rapport de traitement CSV</strong>
+          <p>{csvReport.matched} numéro(s) déjà présent(s) · {csvReport.created} ajout(s) manuel(s) · {csvReport.ignored} ligne(s) ignorée(s).</p>
         </section>
       )}
 
@@ -549,11 +625,29 @@ export function OrgDashboard() {
                     ))}
                   </select>
                 </label>
+                {!!csvPreview.length && (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          {csvHeaders.map((header) => <th key={`preview-head-${header}`}>{header}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvPreview.map((row, rowIndex) => (
+                          <tr key={`preview-row-${rowIndex}`}>
+                            {csvHeaders.map((header, columnIndex) => <td key={`preview-row-${rowIndex}-${header}`}>{row[columnIndex] || '-'}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
             {csvError && <p>{csvError}</p>}
             <div className="button-row">
-              <button className="button" type="button" onClick={submitCsvList} disabled={!csvRows.length}>Soumettre la liste</button>
+              <button className="button" type="button" onClick={submitCsvList} disabled={!csvRows.length || isLoading}>{isBusyAction === 'csv-submit' ? 'Traitement…' : 'Soumettre la liste'}</button>
               <button className="button secondary" type="button" onClick={() => setShowCsvModal(false)}>Fermer</button>
             </div>
           </section>

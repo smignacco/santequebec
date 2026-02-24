@@ -260,6 +260,12 @@ select {
   box-shadow: 0 0 0 3px rgba(0, 188, 235, 0.2);
 }
 
+.form-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.86rem;
+}
+
 
 .login-panel {
   width: min(100%, 640px);
@@ -320,6 +326,11 @@ select {
   background: var(--cisco-blue-700);
   color: var(--cisco-white);
   cursor: pointer;
+}
+
+.toast-success {
+  border-left: 5px solid var(--success);
+  background: #f0fdf4;
 }
 
 .button:disabled,
