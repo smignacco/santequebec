@@ -458,7 +458,7 @@ export function OrgDashboard() {
         </div>
 
         <div className="button-row">
-          <button className="button" onClick={submit} disabled={!canSubmit || isLocked || isLoading}>{isBusyAction === 'submit' ? 'Soumission…' : 'Soumettre l&apos;inventaire'}</button>
+          <button className="button" onClick={submit} disabled={!canSubmit || isLocked || isLoading}>{isBusyAction === 'submit' ? 'Soumission…' : "Soumettre l'inventaire"}</button>
           <button className="button secondary" onClick={resumeValidation} disabled={!canResume || isLoading}>{isBusyAction === 'resume-validation' ? 'Mise à jour…' : 'Remettre en cours de validation'}</button>
           <button className="button secondary" onClick={saveProgress} disabled={isLocked || isLoading}>{isBusyAction === 'save-progress' ? 'Sauvegarde…' : 'Sauvegarder la progression'}</button>
           <button
