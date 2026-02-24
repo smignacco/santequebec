@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE' | 'ADMINS';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO';
 
 const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ORG_PIN_MAX_LENGTH = 9;
@@ -66,6 +66,17 @@ export function AdminDashboard() {
   useEffect(() => {
     Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
+
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => {
+      setMessage('');
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [message]);
 
   const loadOrgDetails = async (orgId: string) => {
     const data = await api(`/admin/orgs/${orgId}/details`);
@@ -455,15 +466,18 @@ export function AdminDashboard() {
 
 
   return (
-    <AppShell>
+    <AppShell contentClassName="admin-main-content">
       <section className="hero">
         <h1>Administration</h1>
         <p>Gestion des organisations, inventaires et publication pour validation.</p>
       </section>
 
       {message && (
-        <section className="panel admin-message-tile">
+        <section className="panel admin-message-tile" role="status" aria-live="polite">
           <p>{message}</p>
+          <button className="icon-button" type="button" aria-label="Fermer le message" onClick={() => setMessage('')}>
+            ✕
+          </button>
         </section>
       )}
 
@@ -471,7 +485,7 @@ export function AdminDashboard() {
         <aside className="panel stack admin-nav">
           <h3>Navigation</h3>
           <div className="stack admin-nav-links">
-            <button className="button secondary" type="button" onClick={() => scrollToSection('admin-global-settings')}>Paramètres globaux</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('VIDEO')}>Vidéo informationnelle</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('LIST')}>Liste des organisations</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('CREATE')}>Créer une organisation</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('ADMINS')}>Gestion des administrateurs</button>
@@ -479,36 +493,36 @@ export function AdminDashboard() {
         </aside>
 
         <div className="stack admin-content">
-          <section id="admin-global-settings" className="panel stack admin-tile">
-            <h3>Paramètres globaux</h3>
-            <label className="stack">
-              Téléverser la vidéo explicative (.mp4)
-              <input
-                className="input"
-                type="file"
-                accept="video/mp4,.mp4"
-                onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
-              />
-            </label>
-            {welcomeVideoUrlDraft ? (
-              <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
-            ) : (
-              <p>Aucune vidéo explicative configurée.</p>
-            )}
-            {isUploadingWelcomeVideo && (
-              <div className="stack" aria-live="polite">
-                <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
-                <progress max={100} value={welcomeVideoUploadPercent} />
-              </div>
-            )}
-            <div className="button-row">
-              <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
-                {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
-              </button>
+      {view === 'VIDEO' ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <h3>Vidéo informationnelle</h3>
+          <label className="stack">
+            Téléverser la vidéo explicative (.mp4)
+            <input
+              className="input"
+              type="file"
+              accept="video/mp4,.mp4"
+              onChange={(e) => setWelcomeVideoFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          {welcomeVideoUrlDraft ? (
+            <p>Vidéo active : <a href={welcomeVideoUrlDraft} target="_blank" rel="noreferrer">{welcomeVideoUrlDraft}</a></p>
+          ) : (
+            <p>Aucune vidéo explicative configurée.</p>
+          )}
+          {isUploadingWelcomeVideo && (
+            <div className="stack" aria-live="polite">
+              <p>Téléversement en cours : {welcomeVideoUploadPercent}%</p>
+              <progress max={100} value={welcomeVideoUploadPercent} />
             </div>
-          </section>
-
-      {view === 'CREATE' ? (
+          )}
+          <div className="button-row">
+            <button className="button" type="button" onClick={uploadWelcomeVideoFile} disabled={isUploadingWelcomeVideo}>
+              {isUploadingWelcomeVideo ? `Téléversement... ${welcomeVideoUploadPercent}%` : 'Téléverser la vidéo explicative'}
+            </button>
+          </div>
+        </section>
+      ) : view === 'CREATE' ? (
         <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Créer une organisation</h3>
           <form className="stack" onSubmit={createOrg}>
