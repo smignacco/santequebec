@@ -21,6 +21,8 @@ export function InventoryTable({
   columnFilters = {},
   onFilterChange,
   filterValuesByColumn = {}
+  ,
+  isBusy = false
 }: {
   items: any[];
   onPatch: (id: string, status: string) => void;
@@ -31,6 +33,7 @@ export function InventoryTable({
   columnFilters?: Record<string, string>;
   onFilterChange?: (column: string, value: string) => void;
   filterValuesByColumn?: Record<string, string[]>;
+  isBusy?: boolean;
 }) {
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -133,9 +136,9 @@ export function InventoryTable({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <span>Action</span>
                 <div className="button-row">
-                  <button className="button success" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('CONFIRMED')}>Confirmer</button>
-                  <button className="button warning" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('NEEDS_CLARIFICATION')}>Clarifier</button>
-                  <button className="button danger" type="button" disabled={!canEdit || !bulkIds.length} onClick={() => runBulkPatch('TO_BE_REMOVED')}>Retirer</button>
+                  <button className="button success" type="button" disabled={!canEdit || !bulkIds.length || isBusy} onClick={() => runBulkPatch('CONFIRMED')}>Confirmer</button>
+                  <button className="button warning" type="button" disabled={!canEdit || !bulkIds.length || isBusy} onClick={() => runBulkPatch('NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button danger" type="button" disabled={!canEdit || !bulkIds.length || isBusy} onClick={() => runBulkPatch('TO_BE_REMOVED')}>Retirer</button>
                 </div>
               </div>
             </th>
@@ -159,9 +162,9 @@ export function InventoryTable({
               ))}
               <td>
                 <div className="button-row">
-                  <button className="button success" disabled={!canEdit} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
-                  <button className="button warning" disabled={!canEdit} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
-                  <button className="button danger" disabled={!canEdit} onClick={() => onPatch(item.id, 'TO_BE_REMOVED')}>Retirer</button>
+                  <button className="button success" disabled={!canEdit || isBusy} onClick={() => onPatch(item.id, 'CONFIRMED')}>Confirmer</button>
+                  <button className="button warning" disabled={!canEdit || isBusy} onClick={() => onPatch(item.id, 'NEEDS_CLARIFICATION')}>Clarifier</button>
+                  <button className="button danger" disabled={!canEdit || isBusy} onClick={() => onPatch(item.id, 'TO_BE_REMOVED')}>Retirer</button>
                   {item.manualEntry && canEdit && onManualEdit && (
                     editingId === item.id ? (
                       <>

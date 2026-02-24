@@ -47,6 +47,18 @@ export function AdminDashboard() {
   const [isOrgAccessLogsModalOpen, setIsOrgAccessLogsModalOpen] = useState(false);
   const [accessLogsOrg, setAccessLogsOrg] = useState<any | null>(null);
   const [orgAccessLogs, setOrgAccessLogs] = useState<any[]>([]);
+  const [isBusyAction, setIsBusyAction] = useState('');
+
+  const runBusyAction = async (key: string, callback: () => Promise<void>) => {
+    if (isBusyAction) return;
+    setIsBusyAction(key);
+    setMessage('');
+    try {
+      await callback();
+    } finally {
+      setIsBusyAction('');
+    }
+  };
 
   const loadOrgs = async () => {
     const orgData = await api('/admin/orgs');
@@ -105,55 +117,55 @@ export function AdminDashboard() {
 
   const createAdminUser = async (e: FormEvent) => {
     e.preventDefault();
-    setMessage('');
+    await runBusyAction('create-admin', async () => {
+      await api('/admin/admin-users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: adminForm.username.trim(),
+          email: adminForm.email.trim(),
+          displayName: adminForm.displayName.trim(),
+          password: adminForm.password
+        })
+      });
 
-    await api('/admin/admin-users', {
-      method: 'POST',
-      body: JSON.stringify({
-        username: adminForm.username.trim(),
-        email: adminForm.email.trim(),
-        displayName: adminForm.displayName.trim(),
-        password: adminForm.password
-      })
+      setAdminForm({ username: '', email: '', displayName: '', password: '' });
+      setMessage('Administrateur ajouté avec succès.');
+      await loadAdminUsers();
     });
-
-    setAdminForm({ username: '', email: '', displayName: '', password: '' });
-    setMessage('Administrateur ajouté avec succès.');
-    await loadAdminUsers();
   };
 
   const createOrg = async (e: FormEvent) => {
     e.preventDefault();
-    setMessage('');
+    await runBusyAction('create-org', async () => {
+      const createdOrg = await api('/admin/orgs', {
+        method: 'POST',
+        body: JSON.stringify({
+          orgCode: orgForm.orgCode,
+          regionCode: orgForm.regionCode,
+          displayName: orgForm.displayName,
+          supportContactEmail: orgForm.supportContactEmail || null,
+          typeCode: 'CISSS',
+          isDrill: false
+        })
+      });
 
-    const createdOrg = await api('/admin/orgs', {
-      method: 'POST',
-      body: JSON.stringify({
-        orgCode: orgForm.orgCode,
-        regionCode: orgForm.regionCode,
-        displayName: orgForm.displayName,
-        supportContactEmail: orgForm.supportContactEmail || null,
-        typeCode: 'CISSS',
-        isDrill: false
-      })
+      const createdBatch = await api('/admin/batches', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Accès ${orgForm.displayName}`
+        })
+      });
+
+      await api(`/admin/batches/${createdBatch.id}/orgs/${createdOrg.id}/access-pin`, {
+        method: 'POST',
+        body: JSON.stringify({ pin: sanitizeOrgPin(orgForm.pin) })
+      });
+
+      setOrgForm({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
+      setView('LIST');
+      setMessage('Organisation créée avec succès. Vous pouvez maintenant téléverser son inventaire depuis la liste.');
+      await loadOrgs();
     });
-
-    const createdBatch = await api('/admin/batches', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: `Accès ${orgForm.displayName}`
-      })
-    });
-
-    await api(`/admin/batches/${createdBatch.id}/orgs/${createdOrg.id}/access-pin`, {
-      method: 'POST',
-      body: JSON.stringify({ pin: sanitizeOrgPin(orgForm.pin) })
-    });
-
-    setOrgForm({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
-    setView('LIST');
-    setMessage('Organisation créée avec succès. Vous pouvez maintenant téléverser son inventaire depuis la liste.');
-    await loadOrgs();
   };
 
   const openUpload = (orgId: string) => {
