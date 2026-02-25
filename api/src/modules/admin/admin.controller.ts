@@ -49,6 +49,60 @@ export class AdminController {
 
   private assertAdmin(req: any) { if (req.user?.role !== 'ADMIN') throw new UnauthorizedException(); }
 
+  private parseExcelRows(file: Express.Multer.File) {
+    if (!file) {
+      throw new ConflictException('Veuillez sélectionner un fichier Excel.');
+    }
+
+    const wb = XLSX.read(file.buffer, { type: 'buffer' });
+    return XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+  }
+
+  private mapInventoryItemRow(row: Record<string, any>, rowNumber: number, inventoryFileId: string) {
+    const norm = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const pick = (aliases: string[]) => {
+      const key = Object.keys(row).find((k) => aliases.includes(norm(k)));
+      const value = key ? row[key] : null;
+      if (value === undefined || value === null || value === '') return null;
+      return String(value);
+    };
+
+    const serialNumber = pick(['serialnumber', 'serial', 'numeroserie']);
+    const productDescription = pick(['productdescription', 'model', 'modele']);
+
+    return {
+      inventoryFileId,
+      rowNumber,
+      assetTag: pick(['assettag', 'tagactif']),
+      serial: serialNumber,
+      model: productDescription,
+      site: pick(['site']),
+      location: pick(['location', 'emplacement']),
+      notes: pick(['notes', 'note']),
+      serialNumber,
+      productId: pick(['productid']),
+      productDescription,
+      major: pick(['major']),
+      productType: pick(['producttype']),
+      productFamily: pick(['productfamily']),
+      architecture: pick(['architecture']),
+      subArchitecture: pick(['subarchitecture']),
+      quantity: pick(['quantity']),
+      ldos: pick(['ldos']),
+      ldosDetailsInMonths: pick(['ldosdetailsinmonths']),
+      centreDeSanteRegional: pick(['centredesanteregional']),
+      serviceableFlag: pick(['serviceableflag']),
+      contractNumber: pick(['contractnumber']),
+      serviceLevel: pick(['servicelevel']),
+      serviceLevelDescription: pick(['serviceleveldescription']),
+      serviceStartDate: pick(['servicestartdate']),
+      serviceEndDate: pick(['serviceenddate']),
+      globalServiceList: pick(['globalservicelist']),
+      excludedAsset: pick(['excludedasset']),
+      status: 'PENDING'
+    };
+  }
+
   @Get('admin-users')
   listAdminUsers(@Req() req: any) {
     this.assertAdmin(req);
@@ -488,58 +542,42 @@ export class AdminController {
   @UseInterceptors(FileInterceptor('file'))
   async importExcel(@Req() req: any, @Param('batchId') batchId: string, @Param('orgId') orgId: string, @UploadedFile() file: Express.Multer.File) {
     this.assertAdmin(req);
-    const wb = XLSX.read(file.buffer, { type: 'buffer' });
-    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    const rows = this.parseExcelRows(file);
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
     const inv = await this.prisma.inventoryFile.create({ data: { batchId, organizationId: orgId, sourceFilename: file.originalname, sourceChecksum: checksum, rowCount: rows.length, status: 'NOT_SUBMITTED' } });
-    const norm = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const pick = (aliases: string[]) => {
-        const key = Object.keys(row).find((k) => aliases.includes(norm(k)));
-        const value = key ? row[key] : null;
-        if (value === undefined || value === null || value === '') return null;
-        return String(value);
-      };
-
-      const serialNumber = pick(['serialnumber', 'serial', 'numeroserie']);
-      const productDescription = pick(['productdescription', 'model', 'modele']);
-
       await this.prisma.inventoryItem.create({
-        data: {
-          inventoryFileId: inv.id,
-          rowNumber: i + 1,
-          assetTag: pick(['assettag', 'tagactif']),
-          serial: serialNumber,
-          model: productDescription,
-          site: pick(['site']),
-          location: pick(['location', 'emplacement']),
-          notes: pick(['notes', 'note']),
-          serialNumber,
-          productId: pick(['productid']),
-          productDescription,
-          major: pick(['major']),
-          productType: pick(['producttype']),
-          productFamily: pick(['productfamily']),
-          architecture: pick(['architecture']),
-          subArchitecture: pick(['subarchitecture']),
-          quantity: pick(['quantity']),
-          ldos: pick(['ldos']),
-          ldosDetailsInMonths: pick(['ldosdetailsinmonths']),
-          centreDeSanteRegional: pick(['centredesanteregional']),
-          serviceableFlag: pick(['serviceableflag']),
-          contractNumber: pick(['contractnumber']),
-          serviceLevel: pick(['servicelevel']),
-          serviceLevelDescription: pick(['serviceleveldescription']),
-          serviceStartDate: pick(['servicestartdate']),
-          serviceEndDate: pick(['serviceenddate']),
-          globalServiceList: pick(['globalservicelist']),
-          excludedAsset: pick(['excludedasset']),
-          status: 'PENDING'
-        }
+        data: this.mapInventoryItemRow(rows[i], i + 1, inv.id)
       });
     }
     return { inventoryFileId: inv.id, rowCount: rows.length };
+  }
+
+  @Post('inventory-files/:fileId/import-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async importExcelIntoExistingInventory(@Req() req: any, @Param('fileId') fileId: string, @UploadedFile() file: Express.Multer.File) {
+    this.assertAdmin(req);
+    const rows = this.parseExcelRows(file);
+    const inventoryFile = await this.prisma.inventoryFile.findUniqueOrThrow({ where: { id: fileId } });
+    const maxRow = await this.prisma.inventoryItem.aggregate({ where: { inventoryFileId: fileId }, _max: { rowNumber: true } });
+    const startingRowNumber = (maxRow._max.rowNumber || 0) + 1;
+
+    for (let i = 0; i < rows.length; i += 1) {
+      await this.prisma.inventoryItem.create({
+        data: this.mapInventoryItemRow(rows[i], startingRowNumber + i, fileId)
+      });
+    }
+
+    const nextStatus = inventoryFile.status === 'CONFIRMED' ? 'PUBLISHED' : inventoryFile.status;
+    await this.prisma.inventoryFile.update({
+      where: { id: fileId },
+      data: {
+        rowCount: { increment: rows.length },
+        status: nextStatus
+      }
+    });
+
+    return { inventoryFileId: fileId, rowCount: rows.length, status: nextStatus };
   }
 
   @Get('dashboard')
