@@ -38,6 +38,7 @@ export function AdminDashboard() {
   const [uploadOrgId, setUploadOrgId] = useState('');
   const [batchName, setBatchName] = useState('');
   const [xlsx, setXlsx] = useState<File | null>(null);
+  const [xlsxToAppend, setXlsxToAppend] = useState<File | null>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', displayName: '', password: '' });
   const [welcomeVideoUrlDraft, setWelcomeVideoUrlDraft] = useState('');
@@ -127,6 +128,7 @@ export function AdminDashboard() {
     setInventoryItems(items);
     setInventoryAuditLogs(logs);
     setColumnFilter('ALL');
+    setXlsxToAppend(null);
   };
 
   const createAdminUser = async (e: FormEvent) => {
@@ -265,6 +267,22 @@ export function AdminDashboard() {
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
     setMessage('Export Excel généré avec succès.');
+  };
+
+  const importIntoSelectedInventory = async () => {
+    if (!selectedFileId) return;
+    if (!xlsxToAppend) {
+      setMessage('Veuillez sélectionner un fichier Excel à ajouter à cet inventaire.');
+      return;
+    }
+
+    const form = new FormData();
+    form.append('file', xlsxToAppend);
+    const out = await apiForm(`/admin/inventory-files/${selectedFileId}/import-excel`, form, { method: 'POST' });
+    setXlsxToAppend(null);
+    setMessage(`${out.rowCount} composantes ont été ajoutées à l'inventaire sélectionné.`);
+    await loadInventory(selectedFileId);
+    if (selectedOrgId) await loadOrgDetails(selectedOrgId);
   };
 
   const selectedInventory = details?.inventoryFiles?.find((file: any) => file.id === selectedFileId);
@@ -455,6 +473,7 @@ export function AdminDashboard() {
 
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
+  const onAppendFile = (e: ChangeEvent<HTMLInputElement>) => setXlsxToAppend(e.target.files?.[0] || null);
 
   const inventoryDbColumns = useMemo(() => {
     const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt', 'assetTag', 'serial', 'model', 'site', 'location']);
@@ -842,6 +861,15 @@ export function AdminDashboard() {
           </div>
 
           {selectedInventory && <p><strong>État actuel:</strong> {selectedInventory.isLocked ? 'Verrouillé' : 'Déverrouillé'} · Statut: {selectedInventory.status}</p>}
+
+          <div className="stack">
+            <h4>Ajouter des composantes depuis Excel</h4>
+            <p>Importez un fichier Excel pour ajouter de nouvelles lignes à cet inventaire déjà chargé.</p>
+            <div className="button-row">
+              <input className="input" type="file" accept=".xlsx,.xls" onChange={onAppendFile} />
+              <button className="button" type="button" onClick={importIntoSelectedInventory}>Ajouter à cet inventaire</button>
+            </div>
+          </div>
 
           <div className="stack">
             <h4>Colonnes affichées</h4>
