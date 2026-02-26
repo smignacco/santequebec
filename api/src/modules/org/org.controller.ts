@@ -14,12 +14,6 @@ export class OrgController {
   private static readonly MANUAL_EDITABLE_FIELDS = ['serial', 'serialNumber', 'productId', 'productDescription'] as const;
   private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
     'rowNumber',
-    'assetTag',
-    'serial',
-    'model',
-    'site',
-    'location',
-    'notes',
     'instanceNumber',
     'serialNumber',
     'productId',
@@ -32,15 +26,6 @@ export class OrgController {
     'quantity',
     'ldos',
     'ldosDetailsInMonths',
-    'centreDeSanteRegional',
-    'serviceableFlag',
-    'contractNumber',
-    'serviceLevel',
-    'serviceLevelDescription',
-    'serviceStartDate',
-    'serviceEndDate',
-    'globalServiceList',
-    'excludedAsset',
     'manualEntry',
     'status'
   ] as const;
