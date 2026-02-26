@@ -20,7 +20,6 @@ export function OrgDashboard() {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [serialColumn, setSerialColumn] = useState('');
-  const [productIdColumn, setProductIdColumn] = useState('');
   const [csvError, setCsvError] = useState('');
   const [manualSerialNumber, setManualSerialNumber] = useState('');
   const [manualProductId, setManualProductId] = useState('');
@@ -30,7 +29,15 @@ export function OrgDashboard() {
   const [doNotShowAgain, setDoNotShowAgain] = useState(false);
   const [isBusyAction, setIsBusyAction] = useState('');
   const [csvPreview, setCsvPreview] = useState<string[][]>([]);
-  const [csvReport, setCsvReport] = useState<{ matched: number; created: number; ignored: number } | null>(null);
+  const [csvReport, setCsvReport] = useState<{
+    processed: number;
+    valid: number;
+    invalidFormat: number;
+    duplicatesIgnored: number;
+    matched: number;
+    created: number;
+    ignored: number;
+  } | null>(null);
   const [quickFilter, setQuickFilter] = useState<'ALL' | 'NEEDS_CLARIFICATION' | 'TO_BE_REMOVED' | 'MANUAL_ONLY' | 'UNVALIDATED'>('ALL');
 
   const getResolvedWelcomeVideoUrl = () => {
@@ -303,7 +310,6 @@ export function OrgDashboard() {
       setCsvHeaders([]);
       setCsvRows([]);
       setSerialColumn('');
-      setProductIdColumn('');
       return;
     }
 
@@ -320,9 +326,7 @@ export function OrgDashboard() {
     setCsvRows(rows);
     setCsvPreview(rows.slice(0, 5));
     const foundSerialColumn = headers.find((header) => /serial|série|serie/i.test(header));
-    const foundProductIdColumn = headers.find((header) => /product.?id|produit.?id|sku/i.test(header));
     setSerialColumn(foundSerialColumn || headers[0] || '');
-    setProductIdColumn(foundProductIdColumn || '');
   };
 
   const submitCsvList = async () => {
@@ -337,14 +341,9 @@ export function OrgDashboard() {
       return;
     }
 
-    const productIdColumnIndex = productIdColumn
-      ? csvHeaders.findIndex((header) => header === productIdColumn)
-      : -1;
-
     const rows = csvRows
       .map((row) => ({
-        serialNumber: (row[columnIndex] || '').trim(),
-        productId: productIdColumnIndex >= 0 ? (row[productIdColumnIndex] || '').trim() : undefined
+        serialNumber: (row[columnIndex] || '').trim()
       }))
       .filter((row) => Boolean(row.serialNumber));
 
@@ -359,15 +358,22 @@ export function OrgDashboard() {
         body: JSON.stringify({ rows })
       });
 
-      const ignored = rows.length - (result.matched + result.created);
-      setCsvReport({ matched: result.matched, created: result.created, ignored: Math.max(0, ignored) });
-      setMessage(`Liste traitée: ${result.matched} trouvé(s), ${result.created} ajouté(s), ${Math.max(0, ignored)} ignoré(s).`);
+      const ignored = result.invalidFormat + result.duplicatesIgnored;
+      setCsvReport({
+        processed: result.processed,
+        valid: result.valid,
+        invalidFormat: result.invalidFormat,
+        duplicatesIgnored: result.duplicatesIgnored,
+        matched: result.matched,
+        created: result.created,
+        ignored
+      });
+      setMessage(`Import CSV terminé: ${result.matched} correspondance(s), ${result.created} nouvel(le)(s) ajout(s), ${ignored} ligne(s) ignorée(s).`);
       setShowCsvModal(false);
       setCsvHeaders([]);
       setCsvRows([]);
       setCsvPreview([]);
       setSerialColumn('');
-      setProductIdColumn('');
       setCsvError('');
       await load(page, pageSize);
     });
@@ -533,6 +539,9 @@ export function OrgDashboard() {
       {csvReport && (
         <section className="panel stack" role="status" aria-live="polite">
           <strong>Rapport de traitement CSV</strong>
+          <p>
+            {csvReport.processed} ligne(s) traitée(s) · {csvReport.valid} numéro(s) valide(s) · {csvReport.invalidFormat} format(s) invalide(s) · {csvReport.duplicatesIgnored} doublon(s) ignoré(s).
+          </p>
           <p>{csvReport.matched} numéro(s) déjà présent(s) · {csvReport.created} ajout(s) manuel(s) · {csvReport.ignored} ligne(s) ignorée(s).</p>
         </section>
       )}
@@ -609,22 +618,13 @@ export function OrgDashboard() {
         <div className="modal-backdrop" role="presentation">
           <section className="modal" role="dialog" aria-modal="true" aria-label="Charger une liste CSV">
             <h3>Charger une liste CSV</h3>
-            <p>Importez un fichier CSV puis associez les colonnes importées aux champs requis.</p>
+            <p>Importez un fichier CSV puis associez uniquement la colonne des numéros de série (11 caractères alphanumériques, ex: FJC250315X1).</p>
             <input className="input" type="file" accept=".csv,text/csv" onChange={(e) => onCsvFile(e.target.files?.[0])} />
             {!!csvHeaders.length && (
               <>
                 <label className="stack">
                   Colonne Serial Number (obligatoire)
                   <select className="input" value={serialColumn} onChange={(e) => setSerialColumn(e.target.value)}>
-                    {csvHeaders.map((header) => (
-                      <option key={header} value={header}>{header}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="stack">
-                  Colonne Product ID (facultatif)
-                  <select className="input" value={productIdColumn} onChange={(e) => setProductIdColumn(e.target.value)}>
-                    <option value="">Aucune colonne</option>
                     {csvHeaders.map((header) => (
                       <option key={header} value={header}>{header}</option>
                     ))}

@@ -401,7 +401,7 @@ export class OrgController {
   }
 
   @Post('confirm-serial-list')
-  async confirmSerialList(@Req() req: any, @Body() body: { rows?: Array<{ serialNumber?: string; productId?: string }> }) {
+  async confirmSerialList(@Req() req: any, @Body() body: { rows?: Array<{ serialNumber?: string }> }) {
     this.assertOrg(req);
 
     const inv = await this.prisma.inventoryFile.findFirstOrThrow({
@@ -409,19 +409,24 @@ export class OrgController {
       orderBy: { importedAt: 'desc' }
     });
 
-    const normalizedRows = (body.rows || [])
-      .map((row) => ({
-        serialNumber: typeof row?.serialNumber === 'string' ? row.serialNumber.trim() : '',
-        productId: typeof row?.productId === 'string' ? row.productId.trim() : ''
-      }))
-      .filter((row) => Boolean(row.serialNumber));
+    const SERIAL_FORMAT = /^[a-z0-9]{11}$/i;
+    const normalizedRows = (body.rows || []).map((row) => ({
+      serialNumber: typeof row?.serialNumber === 'string' ? row.serialNumber.trim() : ''
+    }));
 
-    const dedupedRows = Array.from(new Map(
-      normalizedRows.map((row) => [row.serialNumber.toLowerCase(), row])
-    ).values());
+    const processed = normalizedRows.length;
+    const validRows = normalizedRows.filter((row) => SERIAL_FORMAT.test(row.serialNumber));
+    const invalidFormat = processed - validRows.length;
+
+    const serialMap = new Map<string, { serialNumber: string }>();
+    validRows.forEach((row) => {
+      serialMap.set(row.serialNumber.toLowerCase(), row);
+    });
+    const dedupedRows = Array.from(serialMap.values());
+    const duplicatesIgnored = validRows.length - dedupedRows.length;
 
     if (!dedupedRows.length) {
-      return { processed: 0, matched: 0, created: 0 };
+      return { processed, valid: validRows.length, invalidFormat, duplicatesIgnored, matched: 0, created: 0 };
     }
 
     const existingItems = await this.prisma.inventoryItem.findMany({
@@ -438,25 +443,24 @@ export class OrgController {
     }
 
     let maxRowNumber = existingItems.reduce((max, item) => Math.max(max, item.rowNumber || 0), 0);
-    const matchedRows: { id: string; productId: string }[] = [];
-    const toCreate: { rowNumber: number; serial: string; productId: string | null }[] = [];
+    const matchedRows: { id: string }[] = [];
+    const toCreate: { rowNumber: number; serial: string }[] = [];
 
     for (const row of dedupedRows) {
       const matchedItem = serialIndex.get(row.serialNumber.toLowerCase());
       if (matchedItem) {
-        matchedRows.push({ id: matchedItem.id, productId: row.productId });
+        matchedRows.push({ id: matchedItem.id });
         continue;
       }
       maxRowNumber += 1;
-      toCreate.push({ rowNumber: maxRowNumber, serial: row.serialNumber, productId: row.productId || null });
+      toCreate.push({ rowNumber: maxRowNumber, serial: row.serialNumber });
     }
 
     for (const matched of matchedRows) {
       await this.prisma.inventoryItem.update({
         where: { id: matched.id },
         data: {
-          status: 'CONFIRMED',
-          ...(matched.productId ? { productId: matched.productId } : {})
+          status: 'CONFIRMED'
         }
       });
     }
@@ -468,7 +472,7 @@ export class OrgController {
           rowNumber: item.rowNumber,
           serial: item.serial,
           serialNumber: item.serial,
-          productId: item.productId,
+          productId: null,
           productDescription: 'Ajouté manuellement',
           notes: 'Ajouté manuellement',
           status: 'CONFIRMED',
@@ -490,7 +494,10 @@ export class OrgController {
         actorEmail: req.user.email,
         action: 'ORG_CONFIRM_SERIAL_LIST',
         detailsJson: JSON.stringify({
-          processed: dedupedRows.length,
+          processed,
+          valid: validRows.length,
+          invalidFormat,
+          duplicatesIgnored,
           matched: matchedRows.length,
           created: toCreate.length,
           ...this.getAuditContext(req)
@@ -498,6 +505,13 @@ export class OrgController {
       }
     });
 
-    return { processed: dedupedRows.length, matched: matchedRows.length, created: toCreate.length };
+    return {
+      processed,
+      valid: validRows.length,
+      invalidFormat,
+      duplicatesIgnored,
+      matched: matchedRows.length,
+      created: toCreate.length
+    };
   }
 }
