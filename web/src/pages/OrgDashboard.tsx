@@ -126,6 +126,18 @@ export function OrgDashboard() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!message) return;
+
+    const timeout = window.setTimeout(() => {
+      setMessage('');
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [message]);
+
 
   const patch = async (id: string, status: string) => {
     if (isLocked) return;
@@ -473,6 +485,15 @@ export function OrgDashboard() {
         </div>
       </section>
 
+      {message && (
+        <section className="panel admin-message-tile" role="status" aria-live="polite">
+          <p>{message}</p>
+          <button className="icon-button" type="button" aria-label="Fermer le message" onClick={() => setMessage('')}>
+            ✕
+          </button>
+        </section>
+      )}
+
       <section className="panel stack">
         <div>
           <strong>Progression de validation</strong>
@@ -552,12 +573,6 @@ export function OrgDashboard() {
 
         <InventoryTable items={displayedItems} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked && !isLoading} columnFilters={columnFilters} onFilterChange={onColumnFilterChange} filterValuesByColumn={data.filterValuesByColumn || {}} isBusy={isLoading} />
       </section>
-
-      {message && (
-        <section className="panel toast-success" role="status" aria-live="polite">
-          <p>{message}</p>
-        </section>
-      )}
 
       {csvReport && (
         <section className="panel stack" role="status" aria-live="polite">
