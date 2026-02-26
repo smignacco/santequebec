@@ -269,6 +269,14 @@ export class AdminController {
     const organizations = await this.prisma.organization.findMany({ include: { organizationType: true } });
     const orgIds = organizations.map((org) => org.id);
 
+    const inventoryFiles = orgIds.length
+      ? await this.prisma.inventoryFile.findMany({
+          where: { organizationId: { in: orgIds } },
+          select: { organizationId: true, status: true, importedAt: true },
+          orderBy: { importedAt: 'desc' }
+        })
+      : [];
+
     const loginCounts = orgIds.length
       ? await this.prisma.auditLog.groupBy({
           by: ['scopeId'],
@@ -282,9 +290,27 @@ export class AdminController {
       : [];
 
     const countByOrgId = new Map(loginCounts.map((entry) => [entry.scopeId, entry._count._all]));
+    const validationStatuses = new Set(['PUBLISHED', 'SUBMITTED']);
+    const inventoryStatsByOrgId = new Map<string, { inValidationCount: number; latestInventoryStatus: string | null }>();
+
+    inventoryFiles.forEach((file) => {
+      const existing = inventoryStatsByOrgId.get(file.organizationId);
+      if (existing) {
+        existing.inValidationCount += validationStatuses.has(file.status) ? 1 : 0;
+        return;
+      }
+
+      inventoryStatsByOrgId.set(file.organizationId, {
+        inValidationCount: validationStatuses.has(file.status) ? 1 : 0,
+        latestInventoryStatus: file.status || null
+      });
+    });
+
     return organizations.map((organization) => ({
       ...organization,
-      loginCount: countByOrgId.get(organization.id) || 0
+      loginCount: countByOrgId.get(organization.id) || 0,
+      inValidationCount: inventoryStatsByOrgId.get(organization.id)?.inValidationCount || 0,
+      latestInventoryStatus: inventoryStatsByOrgId.get(organization.id)?.latestInventoryStatus || null
     }));
   }
 

@@ -18,6 +18,18 @@ const generateRandomOrgPin = () => {
   return generatedPin;
 };
 
+const INVENTORY_STATUS_LABELS: Record<string, string> = {
+  NOT_SUBMITTED: 'Non soumis',
+  PUBLISHED: 'En validation',
+  SUBMITTED: 'Soumis',
+  CONFIRMED: 'Confirmé'
+};
+
+const formatInventoryStatus = (status?: string | null) => {
+  if (!status) return 'Aucun inventaire';
+  return INVENTORY_STATUS_LABELS[status] || status;
+};
+
 export function AdminDashboard() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [message, setMessage] = useState('');
@@ -715,6 +727,8 @@ export function AdminDashboard() {
                   <th>Code Organisation</th>
                   <th>Code Region</th>
                   <th>Nom affiché</th>
+                  <th>Validation en cours</th>
+                  <th>Statut inventaire</th>
                   <th>Connexions</th>
                   <th>Actions</th>
                 </tr>
@@ -727,6 +741,8 @@ export function AdminDashboard() {
                     </td>
                     <td>{o.regionCode}</td>
                     <td>{o.displayName}</td>
+                    <td>{o.inValidationCount || 0}</td>
+                    <td>{formatInventoryStatus(o.latestInventoryStatus)}</td>
                     <td>
                       <button className="link-button" type="button" onClick={() => openOrgAccessLogs(o)}>
                         {o.loginCount || 0}
