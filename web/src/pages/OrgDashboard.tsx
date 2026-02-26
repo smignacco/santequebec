@@ -131,12 +131,18 @@ export function OrgDashboard() {
 
     const timeout = window.setTimeout(() => {
       setMessage('');
+      setCsvReport(null);
     }, 6000);
 
     return () => {
       window.clearTimeout(timeout);
     };
   }, [message]);
+
+  const closeInfoMessage = () => {
+    setMessage('');
+    setCsvReport(null);
+  };
 
 
   const patch = async (id: string, status: string) => {
@@ -402,7 +408,7 @@ export function OrgDashboard() {
         created: result.created,
         ignored
       });
-      setMessage(`Import CSV terminé: ${result.matched} correspondance(s), ${result.created} nouvel(le)(s) ajout(s), ${ignored} ligne(s) ignorée(s).`);
+      setMessage('Import CSV terminé.');
       setShowCsvModal(false);
       setCsvHeaders([]);
       setCsvRows([]);
@@ -485,10 +491,21 @@ export function OrgDashboard() {
         </div>
       </section>
 
-      {message && (
+      {(message || csvReport) && (
         <section className="panel admin-message-tile" role="status" aria-live="polite">
-          <p>{message}</p>
-          <button className="icon-button" type="button" aria-label="Fermer le message" onClick={() => setMessage('')}>
+          {message && <p>{message}</p>}
+          {csvReport && (
+            <>
+              <p>
+                <strong>Rapport de traitement CSV</strong>
+              </p>
+              <p>
+                {csvReport.processed} ligne(s) traitée(s) · {csvReport.valid} numéro(s) valide(s) · {csvReport.invalidFormat} format(s) invalide(s) · {csvReport.duplicatesIgnored} doublon(s) ignoré(s).
+              </p>
+              <p>{csvReport.matched} numéro(s) déjà présent(s) · {csvReport.created} ajout(s) manuel(s) · {csvReport.ignored} ligne(s) ignorée(s).</p>
+            </>
+          )}
+          <button className="icon-button" type="button" aria-label="Fermer le message" onClick={closeInfoMessage}>
             ✕
           </button>
         </section>
@@ -573,18 +590,6 @@ export function OrgDashboard() {
 
         <InventoryTable items={displayedItems} visibleColumns={data.visibleColumns || []} onPatch={patch} onBulkPatch={bulkPatch} onManualEdit={editManualItem} canEdit={!isLocked && !isLoading} columnFilters={columnFilters} onFilterChange={onColumnFilterChange} filterValuesByColumn={data.filterValuesByColumn || {}} isBusy={isLoading} />
       </section>
-
-      {csvReport && (
-        <section className="panel stack" role="status" aria-live="polite">
-          <strong>Rapport de traitement CSV</strong>
-          <p>
-            {csvReport.processed} ligne(s) traitée(s) · {csvReport.valid} numéro(s) valide(s) · {csvReport.invalidFormat} format(s) invalide(s) · {csvReport.duplicatesIgnored} doublon(s) ignoré(s).
-          </p>
-          <p>{csvReport.matched} numéro(s) déjà présent(s) · {csvReport.created} ajout(s) manuel(s) · {csvReport.ignored} ligne(s) ignorée(s).</p>
-        </section>
-      )}
-
-
 
       {showWelcomeModal && (
         <div className="modal-backdrop" role="presentation">
