@@ -189,6 +189,28 @@ export function OrgDashboard() {
     });
   };
 
+  const exportInventory = async () => {
+    await runBusyAction('export-excel', async () => {
+      const out = await api('/org/export-excel');
+      const binary = window.atob(out.contentBase64 || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = out.filename || 'inventaire.xlsx';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      setMessage('Export Excel généré avec succès.');
+    });
+  };
+
   const resumeValidation = async () => {
     await runBusyAction('resume-validation', async () => {
       await api('/org/resume-validation', { method: 'POST' });
@@ -472,6 +494,7 @@ export function OrgDashboard() {
           <button className="button" onClick={submit} disabled={!canSubmit || isLocked || isLoading}>{isBusyAction === 'submit' ? 'Soumission…' : "Soumettre l'inventaire"}</button>
           <button className="button secondary" onClick={resumeValidation} disabled={!canResume || isLoading}>{isBusyAction === 'resume-validation' ? 'Mise à jour…' : 'Remettre en cours de validation'}</button>
           <button className="button secondary" onClick={saveProgress} disabled={isLocked || isLoading}>{isBusyAction === 'save-progress' ? 'Sauvegarde…' : 'Sauvegarder la progression'}</button>
+          <button className="button secondary" onClick={exportInventory} disabled={isLoading}>{isBusyAction === 'export-excel' ? 'Export…' : 'Exporter en .xlsx'}</button>
           <button
             className="button secondary"
             onClick={async () => {
