@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WebexService } from '../webex/webex.service';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
+import * as XLSX from 'xlsx';
 
 @Controller('api/org')
 @UseGuards(JwtAuthGuard)
@@ -11,6 +12,38 @@ export class OrgController {
   constructor(private prisma: PrismaService, private webexService: WebexService) {}
   private assertOrg(req: any) { if (req.user?.role !== 'ORG_USER') throw new UnauthorizedException(); }
   private static readonly MANUAL_EDITABLE_FIELDS = ['serial', 'serialNumber', 'productId', 'productDescription'] as const;
+  private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
+    'rowNumber',
+    'assetTag',
+    'serial',
+    'model',
+    'site',
+    'location',
+    'notes',
+    'instanceNumber',
+    'serialNumber',
+    'productId',
+    'productDescription',
+    'major',
+    'productType',
+    'productFamily',
+    'architecture',
+    'subArchitecture',
+    'quantity',
+    'ldos',
+    'ldosDetailsInMonths',
+    'centreDeSanteRegional',
+    'serviceableFlag',
+    'contractNumber',
+    'serviceLevel',
+    'serviceLevelDescription',
+    'serviceStartDate',
+    'serviceEndDate',
+    'globalServiceList',
+    'excludedAsset',
+    'manualEntry',
+    'status'
+  ] as const;
 
   private ensureInventoryEditable(inventoryFile: { isLocked: boolean; status: string }) {
     if (inventoryFile.isLocked) {
@@ -398,6 +431,54 @@ export class OrgController {
     const file = await this.prisma.inventoryFile.update({ where: { id: inv.id }, data: { status: 'PUBLISHED' } });
     await this.prisma.auditLog.create({ data: { scope: 'INVENTORY_FILE', scopeId: file.id, actorType: 'ORG_USER', actorName: req.user.name, actorEmail: req.user.email, action: 'ORG_RESUME_VALIDATION', detailsJson: JSON.stringify({ status: file.status, ...this.getAuditContext(req) }) } });
     return file;
+  }
+
+  @Get('export-excel')
+  async exportExcel(@Req() req: any) {
+    this.assertOrg(req);
+    const inv = await this.prisma.inventoryFile.findFirstOrThrow({
+      where: { organizationId: req.user.organizationId, status: { in: ['PUBLISHED', 'SUBMITTED', 'CONFIRMED'] } },
+      orderBy: { importedAt: 'desc' },
+      include: {
+        organization: true,
+        batch: true,
+        items: { orderBy: { rowNumber: 'asc' } }
+      }
+    });
+
+    const data = inv.items.map((item: any) => {
+      const row: Record<string, any> = {};
+      for (const column of OrgController.EXPORTABLE_INVENTORY_COLUMNS) {
+        const value = item[column];
+        row[column] = value === null || value === undefined ? '' : value;
+      }
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventaire');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    const safeOrgCode = (inv.organization.orgCode || 'org').replace(/[^a-z0-9-_]/gi, '-');
+    const safeBatchName = (inv.batch.name || 'inventaire').replace(/[^a-z0-9-_]/gi, '-');
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'INVENTORY_FILE',
+        scopeId: inv.id,
+        actorType: 'ORG_USER',
+        actorName: req.user.name,
+        actorEmail: req.user.email,
+        action: 'ORG_EXPORT_EXCEL',
+        detailsJson: JSON.stringify(this.getAuditContext(req))
+      }
+    });
+
+    return {
+      filename: `inventaire-${safeOrgCode}-${safeBatchName}.xlsx`,
+      contentBase64: buffer.toString('base64')
+    };
   }
 
   @Post('confirm-serial-list')
