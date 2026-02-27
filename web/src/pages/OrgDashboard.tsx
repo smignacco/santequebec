@@ -520,8 +520,6 @@ export function OrgDashboard() {
           <p>{confirmed} validés sur {total} ({completion}%)</p>
           <ul>
             <li>{remainingToValidate === 0 ? '✅ Tous les items sont validés.' : `🔎 ${remainingToValidate} item(s) restent à traiter.`}</li>
-            <li>{fileStatus === 'PUBLISHED' || fileStatus === 'SUBMITTED' ? '✅ Inventaire publiable/soumissible.' : '⏳ En attente de publication administrateur.'}</li>
-            <li>{isLocked ? '⛔ Inventaire verrouillé.' : '✅ Modifications autorisées.'}</li>
           </ul>
           {fileStatus === 'CONFIRMED' && <p><strong>Statut:</strong> Confirmé auprès des administrateurs.</p>}
           {isLocked && <p><strong>Statut:</strong> Inventaire verrouillé par un administrateur.</p>}
