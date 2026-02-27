@@ -272,7 +272,7 @@ export class AdminController {
     const inventoryFiles = orgIds.length
       ? await this.prisma.inventoryFile.findMany({
           where: { organizationId: { in: orgIds } },
-          select: { organizationId: true, status: true, importedAt: true },
+          select: { id: true, organizationId: true, status: true, importedAt: true, rowCount: true },
           orderBy: { importedAt: 'desc' }
         })
       : [];
@@ -291,7 +291,12 @@ export class AdminController {
 
     const countByOrgId = new Map(loginCounts.map((entry) => [entry.scopeId, entry._count._all]));
     const validationStatuses = new Set(['PUBLISHED', 'SUBMITTED']);
-    const inventoryStatsByOrgId = new Map<string, { inValidationCount: number; latestInventoryStatus: string | null }>();
+    const inventoryStatsByOrgId = new Map<string, {
+      inValidationCount: number;
+      latestInventoryStatus: string | null;
+      latestInventoryFileId: string | null;
+      latestInventoryRowCount: number;
+    }>();
 
     inventoryFiles.forEach((file) => {
       const existing = inventoryStatsByOrgId.get(file.organizationId);
@@ -302,15 +307,36 @@ export class AdminController {
 
       inventoryStatsByOrgId.set(file.organizationId, {
         inValidationCount: validationStatuses.has(file.status) ? 1 : 0,
-        latestInventoryStatus: file.status || null
+        latestInventoryStatus: file.status || null,
+        latestInventoryFileId: file.id,
+        latestInventoryRowCount: file.rowCount
       });
     });
+
+    const latestInventoryFileIds = Array.from(inventoryStatsByOrgId.values())
+      .map((entry) => entry.latestInventoryFileId)
+      .filter((fileId): fileId is string => Boolean(fileId));
+
+    const confirmedCountsByFileId = latestInventoryFileIds.length
+      ? await this.prisma.inventoryItem.groupBy({
+          by: ['inventoryFileId'],
+          where: {
+            inventoryFileId: { in: latestInventoryFileIds },
+            status: 'CONFIRMED'
+          },
+          _count: { _all: true }
+        })
+      : [];
+
+    const confirmedCountByFileId = new Map(confirmedCountsByFileId.map((entry) => [entry.inventoryFileId, entry._count._all]));
 
     return organizations.map((organization) => ({
       ...organization,
       loginCount: countByOrgId.get(organization.id) || 0,
       inValidationCount: inventoryStatsByOrgId.get(organization.id)?.inValidationCount || 0,
-      latestInventoryStatus: inventoryStatsByOrgId.get(organization.id)?.latestInventoryStatus || null
+      latestInventoryStatus: inventoryStatsByOrgId.get(organization.id)?.latestInventoryStatus || null,
+      latestInventoryRowCount: inventoryStatsByOrgId.get(organization.id)?.latestInventoryRowCount || 0,
+      latestInventoryConfirmedCount: confirmedCountByFileId.get(inventoryStatsByOrgId.get(organization.id)?.latestInventoryFileId || '') || 0
     }));
   }
 

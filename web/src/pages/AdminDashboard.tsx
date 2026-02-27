@@ -196,11 +196,12 @@ export function AdminDashboard() {
     });
   };
 
-  const openUpload = (orgId: string) => {
+  const openUpload = async (orgId: string) => {
     setUploadOrgId(orgId);
     setBatchName('');
     setXlsx(null);
     setMessage('');
+    await loadOrgDetails(orgId);
   };
 
   const generateOrgPin = () => {
@@ -727,7 +728,7 @@ export function AdminDashboard() {
                   <th>Code Organisation</th>
                   <th>Code Region</th>
                   <th>Nom affiché</th>
-                  <th>Validation en cours</th>
+                  <th>Progression confirmée</th>
                   <th>Statut inventaire</th>
                   <th>Connexions</th>
                   <th>Actions</th>
@@ -741,7 +742,21 @@ export function AdminDashboard() {
                     </td>
                     <td>{o.regionCode}</td>
                     <td>{o.displayName}</td>
-                    <td>{o.inValidationCount || 0}</td>
+                    <td>
+                      {o.latestInventoryRowCount ? (
+                        <div>
+                          <span>{o.latestInventoryConfirmedCount || 0}/{o.latestInventoryRowCount}</span>
+                          <div className="progress-track" role="progressbar" aria-valuenow={Math.round(((o.latestInventoryConfirmedCount || 0) / o.latestInventoryRowCount) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression confirmée ${o.displayName}`}>
+                            <div
+                              className="progress-value"
+                              style={{ width: `${Math.min(100, Math.round(((o.latestInventoryConfirmedCount || 0) / o.latestInventoryRowCount) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        '0/0'
+                      )}
+                    </td>
                     <td>{formatInventoryStatus(o.latestInventoryStatus)}</td>
                     <td>
                       <button className="link-button" type="button" onClick={() => openOrgAccessLogs(o)}>
@@ -762,17 +777,7 @@ export function AdminDashboard() {
             </table>
           </div>
 
-          {uploadOrgId && (
-            <section className="panel stack upload-panel">
-              <h3>Téléverser un inventaire</h3>
-              <input className="input" placeholder="Nom de la liste d'inventaire" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
-              <input className="input" type="file" accept=".xlsx,.xls" onChange={onFile} />
-              <div className="button-row">
-                <button className="button" type="button" onClick={importInventory}>Charger le fichier</button>
-                <button className="button secondary" type="button" onClick={() => setUploadOrgId('')}>Annuler</button>
-              </div>
-            </section>
-          )}
+
         </section>
       ) : !selectedFileId ? (
         <section id="admin-main-section" className="panel stack admin-tile">
@@ -854,6 +859,18 @@ export function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          {uploadOrgId === details.org.id && (
+            <section className="panel stack upload-panel">
+              <h3>Téléverser un inventaire</h3>
+              <input className="input" placeholder="Nom de la liste d'inventaire" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
+              <input className="input" type="file" accept=".xlsx,.xls" onChange={onFile} />
+              <div className="button-row">
+                <button className="button" type="button" onClick={importInventory}>Charger le fichier</button>
+                <button className="button secondary" type="button" onClick={() => setUploadOrgId('')}>Annuler</button>
+              </div>
+            </section>
+          )}
         </section>
       ) : (
         <section id="admin-main-section" className="panel stack admin-tile">
