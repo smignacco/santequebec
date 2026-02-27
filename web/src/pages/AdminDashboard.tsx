@@ -48,6 +48,7 @@ export function AdminDashboard() {
 
   const [orgForm, setOrgForm] = useState({ orgCode: '', regionCode: '', displayName: '', supportContactEmail: '', pin: '' });
   const [uploadOrgId, setUploadOrgId] = useState('');
+  const [orgSort, setOrgSort] = useState<{ key: 'orgCode' | 'regionCode' | 'displayName' | 'progress' | 'latestInventoryStatus' | 'loginCount'; direction: 'asc' | 'desc' }>({ key: 'displayName', direction: 'asc' });
   const [batchName, setBatchName] = useState('');
   const [xlsx, setXlsx] = useState<File | null>(null);
   const [xlsxToAppend, setXlsxToAppend] = useState<File | null>(null);
@@ -120,6 +121,7 @@ export function AdminDashboard() {
   const loadOrgDetails = async (orgId: string) => {
     const data = await api(`/admin/orgs/${orgId}/details`);
     setDetails(data);
+    setUploadOrgId(orgId);
     setSupportContactDraft(data.org?.supportContactEmail || '');
     setOrgCodeDraft(data.org?.orgCode || '');
     setPinDraft('');
@@ -209,7 +211,8 @@ export function AdminDashboard() {
   };
 
   const importInventory = async () => {
-    if (!uploadOrgId) {
+    const targetOrgId = uploadOrgId || details?.org?.id || selectedOrgId;
+    if (!targetOrgId) {
       setMessage('Veuillez sélectionner une organisation dans la liste pour téléverser un inventaire.');
       return;
     }
@@ -223,17 +226,17 @@ export function AdminDashboard() {
       body: JSON.stringify({ name: batchName.trim() })
     });
 
-    await api(`/admin/batches/${createdBatch.id}/orgs/${uploadOrgId}/access-pin`, { method: 'POST' });
+    await api(`/admin/batches/${createdBatch.id}/orgs/${targetOrgId}/access-pin`, { method: 'POST' });
 
     const form = new FormData();
     form.append('file', xlsx);
-    const out = await apiForm(`/admin/batches/${createdBatch.id}/orgs/${uploadOrgId}/import-excel`, form, { method: 'POST' });
+    const out = await apiForm(`/admin/batches/${createdBatch.id}/orgs/${targetOrgId}/import-excel`, form, { method: 'POST' });
 
     setBatchName('');
     setXlsx(null);
     setUploadOrgId('');
     setMessage(`Inventaire téléversé avec succès (${out.rowCount} lignes).`);
-    await loadOrgDetails(uploadOrgId);
+    await loadOrgDetails(targetOrgId);
   };
 
   const publishInventory = async () => {
@@ -488,6 +491,45 @@ export function AdminDashboard() {
   const onFile = (e: ChangeEvent<HTMLInputElement>) => setXlsx(e.target.files?.[0] || null);
   const onAppendFile = (e: ChangeEvent<HTMLInputElement>) => setXlsxToAppend(e.target.files?.[0] || null);
 
+  const toggleOrgSort = (key: 'orgCode' | 'regionCode' | 'displayName' | 'progress' | 'latestInventoryStatus' | 'loginCount') => {
+    setOrgSort((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const sortedOrgs = useMemo(() => {
+    const getProgressPercent = (org: any) => {
+      if (!org.latestInventoryRowCount) return 0;
+      return (org.latestInventoryConfirmedCount || 0) / org.latestInventoryRowCount;
+    };
+
+    const sorted = [...orgs].sort((left, right) => {
+      const direction = orgSort.direction === 'asc' ? 1 : -1;
+
+      switch (orgSort.key) {
+        case 'orgCode':
+        case 'regionCode':
+        case 'displayName':
+        case 'latestInventoryStatus': {
+          const a = String(left[orgSort.key] || '').toLocaleLowerCase('fr-CA');
+          const b = String(right[orgSort.key] || '').toLocaleLowerCase('fr-CA');
+          return a.localeCompare(b, 'fr-CA') * direction;
+        }
+        case 'loginCount':
+          return ((left.loginCount || 0) - (right.loginCount || 0)) * direction;
+        case 'progress':
+          return (getProgressPercent(left) - getProgressPercent(right)) * direction;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [orgs, orgSort]);
+
   const inventoryDbColumns = useMemo(() => {
     const technicalColumns = new Set(['id', 'inventoryFileId', 'updatedAt', 'assetTag', 'serial', 'model', 'site', 'location']);
     const all = new Set<string>();
@@ -725,17 +767,17 @@ export function AdminDashboard() {
             <table>
               <thead>
                 <tr>
-                  <th>Code Organisation</th>
-                  <th>Code Region</th>
-                  <th>Nom affiché</th>
-                  <th>Progression confirmée</th>
-                  <th>Statut inventaire</th>
-                  <th>Connexions</th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('orgCode')}>Code Organisation</button></th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('regionCode')}>Code Region</button></th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('displayName')}>Nom affiché</button></th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('progress')}>Progression confirmée</button></th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('latestInventoryStatus')}>Statut inventaire</button></th>
+                  <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('loginCount')}>Connexions</button></th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {orgs.map((o) => (
+                {sortedOrgs.map((o) => (
                   <tr key={o.id}>
                     <td>
                       <button className="link-button" type="button" onClick={() => loadOrgDetails(o.id)}>{o.orgCode}</button>
@@ -860,17 +902,15 @@ export function AdminDashboard() {
             </table>
           </div>
 
-          {uploadOrgId === details.org.id && (
-            <section className="panel stack upload-panel">
+          <section className="panel stack upload-panel">
               <h3>Téléverser un inventaire</h3>
               <input className="input" placeholder="Nom de la liste d'inventaire" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
               <input className="input" type="file" accept=".xlsx,.xls" onChange={onFile} />
               <div className="button-row">
                 <button className="button" type="button" onClick={importInventory}>Charger le fichier</button>
-                <button className="button secondary" type="button" onClick={() => setUploadOrgId('')}>Annuler</button>
+                <button className="button secondary" type="button" onClick={() => { setBatchName(''); setXlsx(null); }}>Réinitialiser</button>
               </div>
-            </section>
-          )}
+          </section>
         </section>
       ) : (
         <section id="admin-main-section" className="panel stack admin-tile">
