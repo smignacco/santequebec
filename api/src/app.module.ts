@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OrgModule } from './modules/org/org.module';
+import { ReminderModule } from './modules/reminder/reminder.module';
 
 const localPublicPath = join(process.cwd(), 'public');
 const containerPublicPath = join(process.cwd(), '..', 'public');
@@ -21,7 +22,8 @@ const staticAssetsPath = existsSync(localPublicPath) ? localPublicPath : contain
     AuthModule,
     PublicModule,
     AdminModule,
-    OrgModule
+    OrgModule,
+    ReminderModule
   ]
 })
 export class AppModule {}

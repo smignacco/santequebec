@@ -27,6 +27,7 @@ model Organization {
   regionCode         String
   displayName        String
   supportContactEmail String?
+  reminderNotificationsEnabled Boolean @default(true)
   welcomeVideoDismissed Boolean        @default(false)
   isDrill            Boolean          @default(false)
   isActive           Boolean          @default(true)
@@ -34,6 +35,7 @@ model Organization {
   organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id])
   access             OrgAccess[]
   inventoryFiles     InventoryFile[]
+  reminderRequests   ReminderApproval[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 }
@@ -47,6 +49,9 @@ model AppSettings {
   webexNotifyOnSubmit Boolean  @default(true)
   webexNotifyOnHelp   Boolean  @default(true)
   webexNotifyOnLogin  Boolean  @default(false)
+  webexNotifyOnReminder Boolean @default(true)
+  reminderEmailEnabled Boolean @default(true)
+  reminderBusinessDays Int @default(5)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
@@ -90,6 +95,35 @@ model InventoryFile {
   batch          Batch               @relation(fields: [batchId], references: [id])
   organization   Organization        @relation(fields: [organizationId], references: [id])
   items          InventoryItem[]
+  reminderRequests ReminderApproval[]
+}
+
+model ReminderApproval {
+  id                String        @id @default(cuid())
+  organizationId    String
+  inventoryFileId   String
+  loginAuditLogId   String
+  recipientEmail    String
+  remainingCount    Int
+  totalCount        Int
+  status            String        @default("PENDING_APPROVAL")
+  requestedAt       DateTime      @default(now())
+  approvedAt        DateTime?
+  approvedByName    String?
+  approvedByEmail   String?
+  rejectedAt        DateTime?
+  rejectedByName    String?
+  rejectedByEmail   String?
+  rejectionReason   String?
+  sentAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  organization      Organization  @relation(fields: [organizationId], references: [id])
+  inventoryFile     InventoryFile @relation(fields: [inventoryFileId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([status, requestedAt])
+  @@unique([inventoryFileId, loginAuditLogId])
 }
 
 model InventoryItem {
