@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { createConnection } from 'net';
 import { PrismaService } from '../../common/prisma.service';
+import { encodeLoginLinkPayload } from '../../common/login-link-token';
 import { WebexService } from '../webex/webex.service';
 
 @Injectable()
@@ -639,11 +640,14 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     parsed.pathname = '/login';
     parsed.search = '';
 
-    const params = parsed.searchParams;
-    if (payload.orgCode) params.set('orgCode', payload.orgCode);
-    if (payload.pin) params.set('pin', payload.pin);
-    if (payload.fullName) params.set('name', payload.fullName);
-    if (payload.email) params.set('email', payload.email);
+    const token = encodeLoginLinkPayload({
+      orgCode: payload.orgCode,
+      pin: payload.pin,
+      name: payload.fullName,
+      email: payload.email
+    });
+
+    parsed.searchParams.set('t', token);
 
     return parsed.toString();
   }

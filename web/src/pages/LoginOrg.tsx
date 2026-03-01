@@ -5,6 +5,7 @@ import { saveToken } from '../auth';
 
 export function LoginOrg() {
   const [searchParams] = useSearchParams();
+  const loginTokenFromUrl = (searchParams.get('t') || '').trim();
   const orgCodeFromUrl = (searchParams.get('orgCode') || '').trim();
   const pinFromUrl = (searchParams.get('pin') || '').trim();
   const nameFromUrl = (searchParams.get('name') || '').trim();
@@ -25,8 +26,10 @@ export function LoginOrg() {
 
   const validateOrg = () => {
     const nextErrors: Record<string, string> = {};
-    if (!orgForm.orgCode.trim()) nextErrors.orgCode = 'Le code organisation est requis.';
-    if (!orgForm.pin.trim()) nextErrors.pin = 'Le NIP est requis.';
+    const hasLoginToken = Boolean(loginTokenFromUrl);
+
+    if (!hasLoginToken && !orgForm.orgCode.trim()) nextErrors.orgCode = 'Le code organisation est requis.';
+    if (!hasLoginToken && !orgForm.pin.trim()) nextErrors.pin = 'Le NIP est requis.';
     if (!orgForm.name.trim()) nextErrors.name = 'Le nom complet est requis.';
     if (!orgForm.email.trim()) {
       nextErrors.email = 'Le courriel est requis.';
@@ -64,7 +67,7 @@ export function LoginOrg() {
     try {
       setIsSubmittingOrg(true);
       setError('');
-      const data = await api('/auth/org-login', { method: 'POST', body: JSON.stringify(orgForm) });
+      const data = await api('/auth/org-login', { method: 'POST', body: JSON.stringify({ ...orgForm, loginToken: loginTokenFromUrl || undefined }) });
       saveToken(data.token);
       nav('/org');
     } catch {
@@ -136,9 +139,9 @@ export function LoginOrg() {
 
           {mode === 'ORG' ? (
             <form onSubmit={submitOrg} className="stack" role="tabpanel">
-              <input className="input" placeholder="Code organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} required />
+              <input className="input" placeholder="Code organisation" value={orgForm.orgCode} onChange={(e) => setOrgForm({ ...orgForm, orgCode: e.target.value })} />
               {fieldErrors.orgCode && <p className="form-error">{fieldErrors.orgCode}</p>}
-              <input className="input" type="password" placeholder="NIP" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} required />
+              <input className="input" type="password" placeholder="NIP" value={orgForm.pin} onChange={(e) => setOrgForm({ ...orgForm, pin: e.target.value })} />
               {fieldErrors.pin && <p className="form-error">{fieldErrors.pin}</p>}
               <input className="input" placeholder="Nom complet" value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} required />
               {fieldErrors.name && <p className="form-error">{fieldErrors.name}</p>}
