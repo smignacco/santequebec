@@ -463,8 +463,9 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       [
         'Bonjour,',
         '',
-        `L'inventaire de l'organisation ${payload.organizationName} est toujours en cours de validation.`,
-        `Il reste ${payload.remainingCount} éléments sur ${payload.totalCount} éléments à valider.`,
+        `On sait que vous avez beaucoup de demandes, mais il reste encore quelques éléments à compléter pour la validation de l’inventaire de l’organisation ${payload.organizationName}.`,
+        '',
+        'Merci de prendre un moment pour finaliser le tout dès que possible.',
         '',
         `Accéder à votre inventaire : ${inventoryAccessUrl}`,
         '',
@@ -573,7 +574,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
             <tr>
               <td style="padding:8px 30px 0;">
                 <p style="margin:0; font-size:16px; line-height:1.7; color:#102a43;"><strong>Bonjour,</strong></p>
-                <p style="margin:12px 0 0; font-size:15px; line-height:1.75; color:#102a43;">L’inventaire de l’organisation <strong>${safeOrg}</strong> est toujours en cours de validation. Merci de compléter les éléments restants dès que possible.</p>
+                <p style="margin:12px 0 0; font-size:15px; line-height:1.75; color:#102a43;">On sait que vous avez beaucoup de demandes, mais il reste encore quelques éléments à compléter pour la validation de l’inventaire de l’organisation <strong>${safeOrg}</strong>.</p>
+                <p style="margin:12px 0 0; font-size:15px; line-height:1.75; color:#102a43;">Merci de prendre un moment pour finaliser le tout dès que possible.</p>
                 <p style="margin:16px 0 0;"><a href="${this.escapeHtml(payload.inventoryAccessUrl)}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#0f6ecd; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">Accéder à mon inventaire</a></p>
                 <p style="margin:10px 0 0; font-size:12px; line-height:1.6; color:#486581; word-break:break-all;">Ou copiez ce lien&nbsp;: ${this.escapeHtml(payload.inventoryAccessUrl)}</p>
               </td>
