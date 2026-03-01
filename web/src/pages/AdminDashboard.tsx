@@ -901,10 +901,10 @@ export function AdminDashboard() {
               <table>
                 <thead>
                   <tr>
-                    <th>Organisation</th>
+                    <th className="reminder-org-col">Organisation</th>
                     <th>Destinataire</th>
                     <th>Progression</th>
-                    <th>Demandée le</th>
+                    <th>Déclencheur le</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -915,12 +915,12 @@ export function AdminDashboard() {
                     </tr>
                   ) : pendingReminderApprovals.map((row: any) => (
                     <tr key={row.id}>
-                      <td>{row.organization?.displayName || 'Organisation'} ({row.organization?.orgCode || 'N/A'})</td>
+                      <td className="reminder-org-col">{row.organization?.displayName || 'Organisation'} ({row.organization?.orgCode || 'N/A'})</td>
                       <td>{row.recipientEmail}</td>
                       <td>{Math.max((row.totalCount || 0) - (row.remainingCount || 0), 0)}/{row.totalCount || 0}</td>
-                      <td>{new Date(row.requestedAt).toLocaleString('fr-CA')}</td>
-                      <td>
-                        <div className="button-row">
+                      <td>{new Date(row.triggerReferenceAt || row.requestedAt).toLocaleString('fr-CA')}</td>
+                      <td className="reminder-actions-cell">
+                        <div className="button-row reminder-actions-row">
                           <button className="button secondary" type="button" onClick={() => openReminderPreview(row.id)}>Voir le courriel</button>
                           <button className="button" type="button" onClick={() => approveReminder(row.id)}>Approuver & envoyer</button>
                           <button className="button secondary" type="button" onClick={() => rejectReminder(row.id)}>Rejeter</button>
@@ -1317,7 +1317,17 @@ export function AdminDashboard() {
               </label>
               <label className="stack" style={{ gap: '4px' }}>
                 <span><strong>Version HTML</strong></span>
-                <textarea className="input" rows={10} value={selectedReminderPreview.htmlBody || ''} readOnly />
+                <iframe
+                  title="Aperçu HTML du courriel"
+                  srcDoc={selectedReminderPreview.htmlBody || ''}
+                  style={{
+                    width: '100%',
+                    minHeight: '380px',
+                    border: '1px solid #d6e2ee',
+                    borderRadius: '10px',
+                    backgroundColor: '#ffffff'
+                  }}
+                />
               </label>
               <div className="button-row" style={{ justifyContent: 'flex-end' }}>
                 <button className="button secondary" type="button" onClick={closeReminderPreview}>Fermer</button>

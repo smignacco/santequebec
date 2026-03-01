@@ -356,6 +356,20 @@ select {
   overflow-x: auto;
 }
 
+
+.reminder-org-col {
+  max-width: 220px;
+  white-space: normal;
+}
+
+.reminder-actions-cell {
+  white-space: nowrap;
+}
+
+.reminder-actions-row {
+  flex-wrap: nowrap;
+}
+
 .table-toolbar {
   display: flex;
   justify-content: space-between;
