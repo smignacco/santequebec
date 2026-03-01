@@ -256,21 +256,40 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async sendReminderEmail(payload: { to: string; organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
-    const subject = `Relance - Inventaire ${payload.organizationName} en cours de validation`;
-    const textBody = [
-      'Bonjour,',
-      '',
-      `L'inventaire de l'organisation ${payload.organizationName} est toujours en cours de validation.`,
-      `Il reste ${payload.remainingCount} éléments sur ${payload.totalCount} éléments à valider.`,
-      '',
-      payload.supportContactEmail
+    const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
+    const placeholders = {
+      organizationName: payload.organizationName,
+      remainingCount: String(payload.remainingCount),
+      totalCount: String(payload.totalCount),
+      supportContactEmail: payload.supportContactEmail || '',
+      supportInstructions: payload.supportContactEmail
         ? `Assistance MS Teams: contactez ${payload.supportContactEmail}`
-        : "Assistance MS Teams: utilisez le lien MS Teams de votre organisation.",
-      '',
-      'Merci.'
-    ].join('\r\n');
+        : "Assistance MS Teams: utilisez le lien MS Teams de votre organisation."
+    };
 
-    const htmlBody = this.buildReminderHtmlEmail(payload);
+    const subject = this.applyTemplate(
+      settings?.reminderEmailSubjectTemplate,
+      placeholders,
+      `Relance - Inventaire ${payload.organizationName} en cours de validation`
+    );
+
+    const textBody = this.applyTemplate(
+      settings?.reminderEmailTextTemplate,
+      placeholders,
+      [
+        'Bonjour,',
+        '',
+        `L'inventaire de l'organisation ${payload.organizationName} est toujours en cours de validation.`,
+        `Il reste ${payload.remainingCount} éléments sur ${payload.totalCount} éléments à valider.`,
+        '',
+        placeholders.supportInstructions,
+        '',
+        'Merci.'
+      ].join('\r\n')
+    );
+
+    const defaultHtmlBody = this.buildReminderHtmlEmail(payload);
+    const htmlBody = this.applyTemplate(settings?.reminderEmailHtmlTemplate, placeholders, defaultHtmlBody);
 
     await this.sendSmtpMail({
       host: 'outbound.cisco.com',
@@ -368,6 +387,13 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   </body>
 </html>
 `.trim();
+  }
+
+  private applyTemplate(template: string | null | undefined, values: Record<string, string>, fallback: string) {
+    const source = template?.trim();
+    if (!source) return fallback;
+
+    return source.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? '');
   }
 
   private escapeHtml(value: string) {

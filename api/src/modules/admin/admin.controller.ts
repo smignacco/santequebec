@@ -152,7 +152,10 @@ export class AdminController {
       webexNotifyOnLogin: settings?.webexNotifyOnLogin ?? false,
       webexNotifyOnReminder: settings?.webexNotifyOnReminder ?? true,
       reminderEmailEnabled: settings?.reminderEmailEnabled ?? true,
-      reminderBusinessDays: settings?.reminderBusinessDays ?? 5
+      reminderBusinessDays: settings?.reminderBusinessDays ?? 5,
+      reminderEmailSubjectTemplate: settings?.reminderEmailSubjectTemplate || '',
+      reminderEmailTextTemplate: settings?.reminderEmailTextTemplate || '',
+      reminderEmailHtmlTemplate: settings?.reminderEmailHtmlTemplate || ''
     };
   }
 
@@ -191,7 +194,7 @@ export class AdminController {
 
 
   @Patch('app-settings/webex')
-  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean; webexNotifyOnReminder?: boolean; reminderEmailEnabled?: boolean; reminderBusinessDays?: number }) {
+  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean; webexNotifyOnReminder?: boolean; reminderEmailEnabled?: boolean; reminderBusinessDays?: number; reminderEmailSubjectTemplate?: string | null; reminderEmailTextTemplate?: string | null; reminderEmailHtmlTemplate?: string | null }) {
     this.assertAdmin(req);
 
     const webexBotToken = typeof body.webexBotToken === 'string' && body.webexBotToken.trim()
@@ -199,6 +202,17 @@ export class AdminController {
       : null;
     const webexRoomId = typeof body.webexRoomId === 'string' && body.webexRoomId.trim()
       ? body.webexRoomId.trim()
+      : null;
+
+
+    const reminderEmailSubjectTemplate = typeof body.reminderEmailSubjectTemplate === 'string' && body.reminderEmailSubjectTemplate.trim()
+      ? body.reminderEmailSubjectTemplate.trim()
+      : null;
+    const reminderEmailTextTemplate = typeof body.reminderEmailTextTemplate === 'string' && body.reminderEmailTextTemplate.trim()
+      ? body.reminderEmailTextTemplate.trim()
+      : null;
+    const reminderEmailHtmlTemplate = typeof body.reminderEmailHtmlTemplate === 'string' && body.reminderEmailHtmlTemplate.trim()
+      ? body.reminderEmailHtmlTemplate.trim()
       : null;
 
     const settings = await this.prisma.appSettings.upsert({
@@ -212,7 +226,10 @@ export class AdminController {
         webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin),
         webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
         reminderEmailEnabled: body.reminderEmailEnabled !== false,
-        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5)
+        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5),
+        reminderEmailSubjectTemplate,
+        reminderEmailTextTemplate,
+        reminderEmailHtmlTemplate
       },
       create: {
         id: 'global',
@@ -224,7 +241,10 @@ export class AdminController {
         webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin),
         webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
         reminderEmailEnabled: body.reminderEmailEnabled !== false,
-        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5)
+        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5),
+        reminderEmailSubjectTemplate,
+        reminderEmailTextTemplate,
+        reminderEmailHtmlTemplate
       }
     });
 
@@ -237,7 +257,10 @@ export class AdminController {
       webexNotifyOnLogin: settings.webexNotifyOnLogin,
       webexNotifyOnReminder: settings.webexNotifyOnReminder,
       reminderEmailEnabled: settings.reminderEmailEnabled,
-      reminderBusinessDays: settings.reminderBusinessDays
+      reminderBusinessDays: settings.reminderBusinessDays,
+      reminderEmailSubjectTemplate: settings.reminderEmailSubjectTemplate || '',
+      reminderEmailTextTemplate: settings.reminderEmailTextTemplate || '',
+      reminderEmailHtmlTemplate: settings.reminderEmailHtmlTemplate || ''
     };
   }
 
