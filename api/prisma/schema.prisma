@@ -52,6 +52,9 @@ model AppSettings {
   webexNotifyOnReminder Boolean @default(true)
   reminderEmailEnabled Boolean @default(true)
   reminderBusinessDays Int @default(5)
+  reminderEmailSubjectTemplate String?
+  reminderEmailTextTemplate String?
+  reminderEmailHtmlTemplate String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

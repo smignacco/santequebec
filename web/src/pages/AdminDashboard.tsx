@@ -64,6 +64,9 @@ export function AdminDashboard() {
   const [webexNotifyOnReminder, setWebexNotifyOnReminder] = useState(true);
   const [reminderEmailEnabled, setReminderEmailEnabled] = useState(true);
   const [reminderBusinessDays, setReminderBusinessDays] = useState(5);
+  const [reminderEmailSubjectTemplate, setReminderEmailSubjectTemplate] = useState('');
+  const [reminderEmailTextTemplate, setReminderEmailTextTemplate] = useState('');
+  const [reminderEmailHtmlTemplate, setReminderEmailHtmlTemplate] = useState('');
   const [webexSpaces, setWebexSpaces] = useState<Array<{ id: string; title: string }>>([]);
   const [isLoadingWebexSpaces, setIsLoadingWebexSpaces] = useState(false);
   const [pendingReminderApprovals, setPendingReminderApprovals] = useState<any[]>([]);
@@ -108,6 +111,9 @@ export function AdminDashboard() {
     setWebexNotifyOnReminder(data?.webexNotifyOnReminder !== false);
     setReminderEmailEnabled(data?.reminderEmailEnabled !== false);
     setReminderBusinessDays(Math.max(1, Number(data?.reminderBusinessDays) || 5));
+    setReminderEmailSubjectTemplate(data?.reminderEmailSubjectTemplate || '');
+    setReminderEmailTextTemplate(data?.reminderEmailTextTemplate || '');
+    setReminderEmailHtmlTemplate(data?.reminderEmailHtmlTemplate || '');
   };
 
   const loadPendingReminderApprovals = async () => {
@@ -459,7 +465,10 @@ export function AdminDashboard() {
         webexNotifyOnLogin,
         webexNotifyOnReminder,
         reminderEmailEnabled,
-        reminderBusinessDays: Math.max(1, Number(reminderBusinessDays) || 1)
+        reminderBusinessDays: Math.max(1, Number(reminderBusinessDays) || 1),
+        reminderEmailSubjectTemplate: reminderEmailSubjectTemplate.trim() || null,
+        reminderEmailTextTemplate: reminderEmailTextTemplate.trim() || null,
+        reminderEmailHtmlTemplate: reminderEmailHtmlTemplate.trim() || null
       })
     });
     setMessage('Configuration Webex mise à jour.');
@@ -763,6 +772,41 @@ export function AdminDashboard() {
               onChange={(e) => setReminderBusinessDays(Math.max(1, Number(e.target.value) || 1))}
             />
           </label>
+          <label className="stack" htmlFor="reminderEmailSubjectTemplate">
+            <span>Modèle du sujet (optionnel)</span>
+            <input
+              id="reminderEmailSubjectTemplate"
+              className="input"
+              placeholder="Relance - Inventaire {{organizationName}} en cours de validation"
+              value={reminderEmailSubjectTemplate}
+              onChange={(e) => setReminderEmailSubjectTemplate(e.target.value)}
+            />
+          </label>
+          <label className="stack" htmlFor="reminderEmailTextTemplate">
+            <span>Modèle texte (optionnel)</span>
+            <textarea
+              id="reminderEmailTextTemplate"
+              className="input"
+              rows={7}
+              placeholder={"Bonjour,\n\nL'inventaire de l'organisation {{organizationName}} est toujours en cours de validation."}
+              value={reminderEmailTextTemplate}
+              onChange={(e) => setReminderEmailTextTemplate(e.target.value)}
+            />
+          </label>
+          <label className="stack" htmlFor="reminderEmailHtmlTemplate">
+            <span>Modèle HTML (optionnel)</span>
+            <textarea
+              id="reminderEmailHtmlTemplate"
+              className="input"
+              rows={10}
+              placeholder="<p>Bonjour,</p><p>Il reste {{remainingCount}} / {{totalCount}} éléments à valider pour {{organizationName}}.</p>"
+              value={reminderEmailHtmlTemplate}
+              onChange={(e) => setReminderEmailHtmlTemplate(e.target.value)}
+            />
+          </label>
+          <p style={{ marginTop: '-8px', fontSize: '13px', color: '#5a6b7f' }}>
+            Variables disponibles : {'{{organizationName}}'}, {'{{remainingCount}}'}, {'{{totalCount}}'}, {'{{supportContactEmail}}'}, {'{{supportInstructions}}'}.
+          </p>
           <div className="button-row">
             <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer les paramètres</button>
             <button className="button secondary" type="button" onClick={loadPendingReminderApprovals}>Actualiser les approbations</button>
