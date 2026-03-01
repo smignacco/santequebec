@@ -256,21 +256,21 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async sendReminderEmail(payload: { to: string; organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
-    const supportContactLine = payload.supportContactEmail
-      ? `Pour de l'assistance, joignez-nous via MS Teams: ${payload.supportContactEmail}.`
-      : "Pour de l'assistance, utilisez le lien MS Teams de votre organisation.";
-
     const subject = `Relance - Inventaire ${payload.organizationName} en cours de validation`;
-    const body = [
+    const textBody = [
       'Bonjour,',
       '',
       `L'inventaire de l'organisation ${payload.organizationName} est toujours en cours de validation.`,
       `Il reste ${payload.remainingCount} éléments sur ${payload.totalCount} éléments à valider.`,
       '',
-      supportContactLine,
+      payload.supportContactEmail
+        ? `Assistance MS Teams: contactez ${payload.supportContactEmail}`
+        : "Assistance MS Teams: utilisez le lien MS Teams de votre organisation.",
       '',
       'Merci.'
     ].join('\r\n');
+
+    const htmlBody = this.buildReminderHtmlEmail(payload);
 
     await this.sendSmtpMail({
       host: 'outbound.cisco.com',
@@ -278,11 +278,108 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       from: 'santequebec@cisco.com',
       to: payload.to,
       subject,
-      body
+      textBody,
+      htmlBody
     });
   }
 
-  private async sendSmtpMail(input: { host: string; port: number; from: string; to: string; subject: string; body: string }) {
+  private buildReminderHtmlEmail(payload: { organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
+    const safeOrg = this.escapeHtml(payload.organizationName);
+    const remainingCount = payload.remainingCount;
+    const totalCount = payload.totalCount;
+    const ciscoLogoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/512px-Cisco_logo_blue_2016.svg.png';
+    const teamsIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg/512px-Microsoft_Office_Teams_%282018%E2%80%93present%29.svg.png';
+
+    const teamsLink = payload.supportContactEmail
+      ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(payload.supportContactEmail)}`
+      : null;
+
+    const supportCard = teamsLink
+      ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px; width:100%; border-collapse:separate; border-spacing:0; background:#f2f8ff; border:1px solid #d8e6ff; border-radius:12px;">
+          <tr>
+            <td style="padding:18px 20px;">
+              <p style="margin:0 0 12px; font-size:15px; line-height:1.5; color:#0b1f33;"><strong>Besoin d’assistance&nbsp;?</strong> Contactez directement votre personne-ressource via Microsoft Teams.</p>
+              <a href="${teamsLink}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#4b53bc; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">
+                <img src="${teamsIconUrl}" width="18" height="18" alt="Microsoft Teams" style="vertical-align:middle; margin-right:8px; border:0;" />
+                Contacter ${this.escapeHtml(payload.supportContactEmail || '')} sur Teams
+              </a>
+            </td>
+          </tr>
+        </table>
+      `
+      : `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px; width:100%; border-collapse:separate; border-spacing:0; background:#f8f9fb; border:1px solid #e6e8ec; border-radius:12px;">
+          <tr>
+            <td style="padding:18px 20px; font-size:14px; line-height:1.6; color:#34495e;">
+              Pour obtenir de l’assistance, utilisez le lien Microsoft Teams de votre organisation.
+            </td>
+          </tr>
+        </table>
+      `;
+
+    return `
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Relance inventaire</title>
+  </head>
+  <body style="margin:0; padding:0; background:#eef2f7; font-family:Arial, Helvetica, sans-serif; color:#0b1f33;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef2f7; padding:28px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="640" style="width:640px; max-width:640px; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 6px 28px rgba(21, 44, 88, 0.14);">
+            <tr>
+              <td style="background:linear-gradient(90deg, #0078d4 0%, #0a66c2 100%); padding:22px 28px;">
+                <img src="${ciscoLogoUrl}" width="120" alt="Cisco" style="display:block; border:0; margin:0 0 14px;" />
+                <p style="margin:0; font-size:13px; letter-spacing:0.3px; color:#e8f4ff; text-transform:uppercase;">Plateforme Santé Québec</p>
+                <h1 style="margin:8px 0 0; font-size:24px; line-height:1.25; color:#ffffff;">Relance de validation d’inventaire</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 30px 30px;">
+                <p style="margin:0 0 16px; font-size:15px; line-height:1.6; color:#1f2d3d;">Bonjour,</p>
+                <p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:#1f2d3d;">L’inventaire de l’organisation <strong>${safeOrg}</strong> est toujours en cours de validation.</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate; border-spacing:0; background:#f4f9ff; border:1px solid #d9eaff; border-radius:12px;">
+                  <tr>
+                    <td style="padding:18px 20px;">
+                      <p style="margin:0; font-size:14px; color:#345;">Progression actuelle</p>
+                      <p style="margin:8px 0 0; font-size:28px; line-height:1.2; font-weight:700; color:#0a66c2;">${remainingCount} / ${totalCount}</p>
+                      <p style="margin:8px 0 0; font-size:14px; color:#345;">éléments restants à valider</p>
+                    </td>
+                  </tr>
+                </table>
+                ${supportCard}
+                <p style="margin:24px 0 0; font-size:15px; line-height:1.7; color:#1f2d3d;">Merci de votre collaboration.</p>
+                <p style="margin:8px 0 0; font-size:14px; color:#5a6b7f;">Équipe de coordination Cisco · Santé Québec</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 30px; background:#f8fafc; border-top:1px solid #e6ecf3;">
+                <p style="margin:0; font-size:12px; line-height:1.5; color:#6b7b8f;">Ce message a été envoyé automatiquement depuis <strong>santequebec@cisco.com</strong>.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim();
+  }
+
+  private escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private async sendSmtpMail(input: { host: string; port: number; from: string; to: string; subject: string; textBody: string; htmlBody: string }) {
     const socket = createConnection({ host: input.host, port: input.port });
 
     const readResponse = async () => {
@@ -344,9 +441,22 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         `From: ${input.from}`,
         `To: ${input.to}`,
         `Subject: ${input.subject}`,
-        'Content-Type: text/plain; charset=utf-8',
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="sq-reminder-boundary"',
         '',
-        input.body,
+        '--sq-reminder-boundary',
+        'Content-Type: text/plain; charset=utf-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        input.textBody,
+        '',
+        '--sq-reminder-boundary',
+        'Content-Type: text/html; charset=utf-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        input.htmlBody,
+        '',
+        '--sq-reminder-boundary--',
         '.',
         ''
       ].join('\r\n');
