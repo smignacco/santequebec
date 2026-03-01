@@ -87,7 +87,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         const latestPendingInventory = await this.prisma.inventoryFile.findFirst({
           where: {
             organizationId: organization.id,
-            status: { in: ['NOT_SUBMITTED', 'PUBLISHED', 'SUBMITTED'] }
+            status: { in: ['NOT_SUBMITTED', 'PUBLISHED'] }
           },
           orderBy: { importedAt: 'desc' }
         });
