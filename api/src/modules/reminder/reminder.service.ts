@@ -50,13 +50,16 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async runCycle() {
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      return { queuedCount: 0, skippedBecauseAlreadyRunning: true };
+    }
     this.isRunning = true;
+    let queuedCount = 0;
 
     try {
       const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
       if (!settings?.reminderEmailEnabled) {
-        return;
+        return { queuedCount: 0, skippedBecauseAlreadyRunning: false };
       }
 
       const reminderBusinessDays = Math.max(1, settings.reminderBusinessDays || 1);
@@ -137,10 +140,45 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
             })
           }
         });
+
+        queuedCount += 1;
       }
+
+      return { queuedCount, skippedBecauseAlreadyRunning: false };
     } finally {
       this.isRunning = false;
     }
+  }
+
+  async runCycleManually(admin: { name: string; email: string }) {
+    const result = await this.runCycle();
+    if (result.skippedBecauseAlreadyRunning) {
+      return {
+        ok: false,
+        message: 'Un cycle de relance est déjà en cours. Réessayez dans quelques instants.',
+        queuedCount: 0
+      };
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'APP_SETTINGS',
+        scopeId: 'global',
+        actorType: 'ADMIN',
+        actorName: admin.name,
+        actorEmail: admin.email,
+        action: 'ORG_REMINDER_CYCLE_TRIGGERED',
+        detailsJson: JSON.stringify({ queuedCount: result.queuedCount })
+      }
+    });
+
+    return {
+      ok: true,
+      message: result.queuedCount > 0
+        ? `${result.queuedCount} relance(s) ajoutée(s) à la file d'approbation.`
+        : 'Cycle exécuté. Aucune nouvelle relance à approuver pour les paramètres actuels.',
+      queuedCount: result.queuedCount
+    };
   }
 
   async listPendingApprovals() {

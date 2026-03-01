@@ -121,6 +121,14 @@ export function AdminDashboard() {
     setPendingReminderApprovals(Array.isArray(rows) ? rows : []);
   };
 
+  const runReminderCycle = async () => {
+    await runBusyAction('run-reminder-cycle', async () => {
+      const out = await api('/admin/reminders/run-cycle', { method: 'POST' });
+      setMessage(out?.message || 'Cycle de relance exécuté.');
+      await loadPendingReminderApprovals();
+    });
+  };
+
   useEffect(() => {
     Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
@@ -809,7 +817,14 @@ export function AdminDashboard() {
           </p>
           <div className="button-row">
             <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer les paramètres</button>
-            <button className="button secondary" type="button" onClick={loadPendingReminderApprovals}>Actualiser les approbations</button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={runReminderCycle}
+              disabled={isBusyAction === 'run-reminder-cycle'}
+            >
+              {isBusyAction === 'run-reminder-cycle' ? 'Exécution…' : 'Exécuter un cycle maintenant'}
+            </button>
           </div>
           <div className="stack">
             <h4>Approbation des relances courriel</h4>

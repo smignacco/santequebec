@@ -282,6 +282,15 @@ export class AdminController {
     return this.reminderService.listPendingApprovals();
   }
 
+  @Post('reminders/run-cycle')
+  async runReminderCycle(@Req() req: any) {
+    this.assertAdmin(req);
+    return this.reminderService.runCycleManually({
+      name: req.user?.name || 'Admin',
+      email: req.user?.email || 'admin@santequebec.local'
+    });
+  }
+
   @Post('reminders/:id/approve')
   async approveReminder(@Req() req: any, @Param('id') id: string) {
     this.assertAdmin(req);
