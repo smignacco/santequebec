@@ -195,7 +195,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listPendingApprovals() {
-    return this.prisma.reminderApproval.findMany({
+    const reminders = await this.prisma.reminderApproval.findMany({
       where: { status: 'PENDING_APPROVAL' },
       include: {
         organization: { select: { id: true, displayName: true, orgCode: true } },
@@ -203,6 +203,37 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       },
       orderBy: { requestedAt: 'asc' }
     });
+
+    const remindersWithTriggerContext = await Promise.all(reminders.map(async (reminder) => {
+      const [loginAuditLog, previousReminder] = await Promise.all([
+        this.prisma.auditLog.findUnique({
+          where: { id: reminder.loginAuditLogId },
+          select: { createdAt: true }
+        }),
+        this.prisma.reminderApproval.findFirst({
+          where: {
+            inventoryFileId: reminder.inventoryFileId,
+            recipientEmail: reminder.recipientEmail,
+            status: { in: ['APPROVED', 'SENT'] },
+            requestedAt: { lt: reminder.requestedAt }
+          },
+          orderBy: { requestedAt: 'desc' },
+          select: { requestedAt: true, approvedAt: true, sentAt: true }
+        })
+      ]);
+
+      const triggerReferenceAt = previousReminder
+        ? (previousReminder.sentAt || previousReminder.approvedAt || previousReminder.requestedAt)
+        : loginAuditLog?.createdAt || reminder.requestedAt;
+
+      return {
+        ...reminder,
+        triggerReferenceAt,
+        triggerType: previousReminder ? 'FOLLOW_UP' : 'INITIAL'
+      };
+    }));
+
+    return remindersWithTriggerContext;
   }
 
   async approveReminder(reminderId: string, admin: { name: string; email: string }) {
