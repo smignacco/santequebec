@@ -1302,7 +1302,14 @@ export function AdminDashboard() {
 
       {isReminderPreviewOpen && selectedReminderPreview && (
         <div className="modal-backdrop" role="presentation" onClick={closeReminderPreview}>
-          <section className="modal" role="dialog" aria-modal="true" aria-label="Aperçu du courriel de relance" onClick={(event) => event.stopPropagation()}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Aperçu du courriel de relance"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(820px, 100%)' }}
+          >
             <div className="stack" style={{ gap: '12px' }}>
               <h3 style={{ marginTop: 0 }}>Aperçu du courriel en attente</h3>
               <p style={{ margin: 0 }}><strong>Organisation :</strong> {selectedReminderPreview.organization?.displayName} ({selectedReminderPreview.organization?.orgCode || 'N/A'})</p>
@@ -1310,10 +1317,6 @@ export function AdminDashboard() {
               <label className="stack" style={{ gap: '4px' }}>
                 <span><strong>Objet</strong></span>
                 <textarea className="input" rows={2} value={selectedReminderPreview.subject || ''} readOnly />
-              </label>
-              <label className="stack" style={{ gap: '4px' }}>
-                <span><strong>Version texte</strong></span>
-                <textarea className="input" rows={10} value={selectedReminderPreview.textBody || ''} readOnly />
               </label>
               <label className="stack" style={{ gap: '4px' }}>
                 <span><strong>Version HTML</strong></span>
