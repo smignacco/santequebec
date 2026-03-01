@@ -286,6 +286,12 @@ export class AdminController {
     return this.reminderService.listPendingApprovals();
   }
 
+  @Get('reminders/:id/preview')
+  async previewReminder(@Req() req: any, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.reminderService.previewPendingReminder(id);
+  }
+
   @Post('reminders/run-cycle')
   async runReminderCycle(@Req() req: any) {
     this.assertAdmin(req);

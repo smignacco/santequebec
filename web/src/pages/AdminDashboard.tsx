@@ -78,6 +78,8 @@ export function AdminDashboard() {
   const [isOrgAccessLogsModalOpen, setIsOrgAccessLogsModalOpen] = useState(false);
   const [accessLogsOrg, setAccessLogsOrg] = useState<any | null>(null);
   const [orgAccessLogs, setOrgAccessLogs] = useState<any[]>([]);
+  const [selectedReminderPreview, setSelectedReminderPreview] = useState<any | null>(null);
+  const [isReminderPreviewOpen, setIsReminderPreviewOpen] = useState(false);
   const [isBusyAction, setIsBusyAction] = useState('');
 
   const runBusyAction = async (key: string, callback: () => Promise<void>) => {
@@ -524,6 +526,22 @@ export function AdminDashboard() {
     await loadPendingReminderApprovals();
   };
 
+  const openReminderPreview = async (id: string) => {
+    setMessage('');
+    const out = await api(`/admin/reminders/${id}/preview`);
+    if (!out?.ok) {
+      setMessage(out?.message || 'Impossible de charger l’aperçu du courriel.');
+      return;
+    }
+    setSelectedReminderPreview(out);
+    setIsReminderPreviewOpen(true);
+  };
+
+  const closeReminderPreview = () => {
+    setIsReminderPreviewOpen(false);
+    setSelectedReminderPreview(null);
+  };
+
   const loadWebexSpaces = async () => {
     setIsLoadingWebexSpaces(true);
     try {
@@ -903,6 +921,7 @@ export function AdminDashboard() {
                       <td>{new Date(row.requestedAt).toLocaleString('fr-CA')}</td>
                       <td>
                         <div className="button-row">
+                          <button className="button secondary" type="button" onClick={() => openReminderPreview(row.id)}>Voir le courriel</button>
                           <button className="button" type="button" onClick={() => approveReminder(row.id)}>Approuver & envoyer</button>
                           <button className="button secondary" type="button" onClick={() => rejectReminder(row.id)}>Rejeter</button>
                         </div>
@@ -1280,6 +1299,33 @@ export function AdminDashboard() {
       </div>
 
 
+
+      {isReminderPreviewOpen && selectedReminderPreview && (
+        <div className="modal-backdrop" role="presentation" onClick={closeReminderPreview}>
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Aperçu du courriel de relance" onClick={(event) => event.stopPropagation()}>
+            <div className="stack" style={{ gap: '12px' }}>
+              <h3 style={{ marginTop: 0 }}>Aperçu du courriel en attente</h3>
+              <p style={{ margin: 0 }}><strong>Organisation :</strong> {selectedReminderPreview.organization?.displayName} ({selectedReminderPreview.organization?.orgCode || 'N/A'})</p>
+              <p style={{ margin: 0 }}><strong>Destinataire :</strong> {selectedReminderPreview.recipientEmail}</p>
+              <label className="stack" style={{ gap: '4px' }}>
+                <span><strong>Objet</strong></span>
+                <textarea className="input" rows={2} value={selectedReminderPreview.subject || ''} readOnly />
+              </label>
+              <label className="stack" style={{ gap: '4px' }}>
+                <span><strong>Version texte</strong></span>
+                <textarea className="input" rows={10} value={selectedReminderPreview.textBody || ''} readOnly />
+              </label>
+              <label className="stack" style={{ gap: '4px' }}>
+                <span><strong>Version HTML</strong></span>
+                <textarea className="input" rows={10} value={selectedReminderPreview.htmlBody || ''} readOnly />
+              </label>
+              <div className="button-row" style={{ justifyContent: 'flex-end' }}>
+                <button className="button secondary" type="button" onClick={closeReminderPreview}>Fermer</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       {isOrgAccessLogsModalOpen && accessLogsOrg && (
         <div className="modal-backdrop" role="presentation" onClick={closeOrgAccessLogsModal}>
