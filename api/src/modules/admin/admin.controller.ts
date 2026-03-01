@@ -8,11 +8,12 @@ import * as XLSX from 'xlsx';
 import { PrismaService } from '../../common/prisma.service';
 import { WebexService } from '../webex/webex.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ReminderService } from '../reminder/reminder.service';
 
 @Controller('api/admin')
 @UseGuards(JwtAuthGuard)
 export class AdminController {
-  constructor(private prisma: PrismaService, private webexService: WebexService) {}
+  constructor(private prisma: PrismaService, private webexService: WebexService, private reminderService: ReminderService) {}
   private static readonly WELCOME_VIDEO_DIR = join(process.cwd(), 'public', 'uploads', 'welcome-video');
   private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
     'rowNumber',
@@ -148,7 +149,10 @@ export class AdminController {
       webexRoomId: settings?.webexRoomId || '',
       webexNotifyOnSubmit: settings?.webexNotifyOnSubmit ?? true,
       webexNotifyOnHelp: settings?.webexNotifyOnHelp ?? true,
-      webexNotifyOnLogin: settings?.webexNotifyOnLogin ?? false
+      webexNotifyOnLogin: settings?.webexNotifyOnLogin ?? false,
+      webexNotifyOnReminder: settings?.webexNotifyOnReminder ?? true,
+      reminderEmailEnabled: settings?.reminderEmailEnabled ?? true,
+      reminderBusinessDays: settings?.reminderBusinessDays ?? 5
     };
   }
 
@@ -187,7 +191,7 @@ export class AdminController {
 
 
   @Patch('app-settings/webex')
-  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean }) {
+  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean; webexNotifyOnReminder?: boolean; reminderEmailEnabled?: boolean; reminderBusinessDays?: number }) {
     this.assertAdmin(req);
 
     const webexBotToken = typeof body.webexBotToken === 'string' && body.webexBotToken.trim()
@@ -205,7 +209,10 @@ export class AdminController {
         webexRoomId,
         webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
         webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
-        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin),
+        webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
+        reminderEmailEnabled: body.reminderEmailEnabled !== false,
+        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5)
       },
       create: {
         id: 'global',
@@ -214,7 +221,10 @@ export class AdminController {
         webexRoomId,
         webexNotifyOnSubmit: body.webexNotifyOnSubmit !== false,
         webexNotifyOnHelp: body.webexNotifyOnHelp !== false,
-        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin)
+        webexNotifyOnLogin: Boolean(body.webexNotifyOnLogin),
+        webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
+        reminderEmailEnabled: body.reminderEmailEnabled !== false,
+        reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5)
       }
     });
 
@@ -224,7 +234,10 @@ export class AdminController {
       webexRoomId: settings.webexRoomId || '',
       webexNotifyOnSubmit: settings.webexNotifyOnSubmit,
       webexNotifyOnHelp: settings.webexNotifyOnHelp,
-      webexNotifyOnLogin: settings.webexNotifyOnLogin
+      webexNotifyOnLogin: settings.webexNotifyOnLogin,
+      webexNotifyOnReminder: settings.webexNotifyOnReminder,
+      reminderEmailEnabled: settings.reminderEmailEnabled,
+      reminderBusinessDays: settings.reminderBusinessDays
     };
   }
 
@@ -238,6 +251,30 @@ export class AdminController {
   async listWebexSpaces(@Req() req: any, @Query('botToken') botToken?: string) {
     this.assertAdmin(req);
     return this.webexService.listRooms(botToken);
+  }
+
+  @Get('reminders/pending-approvals')
+  async listReminderPendingApprovals(@Req() req: any) {
+    this.assertAdmin(req);
+    return this.reminderService.listPendingApprovals();
+  }
+
+  @Post('reminders/:id/approve')
+  async approveReminder(@Req() req: any, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.reminderService.approveReminder(id, {
+      name: req.user?.name || 'Admin',
+      email: req.user?.email || 'admin@santequebec.local'
+    });
+  }
+
+  @Post('reminders/:id/reject')
+  async rejectReminder(@Req() req: any, @Param('id') id: string, @Body() body?: { reason?: string }) {
+    this.assertAdmin(req);
+    return this.reminderService.rejectReminder(id, {
+      name: req.user?.name || 'Admin',
+      email: req.user?.email || 'admin@santequebec.local'
+    }, body?.reason);
   }
 
   @Patch('app-settings/welcome-video-url')
@@ -481,6 +518,7 @@ export class AdminController {
         regionCode: body.regionCode,
         displayName: body.displayName,
         supportContactEmail: body.supportContactEmail || null,
+        reminderNotificationsEnabled: true,
         isDrill: Boolean(body.isDrill),
         organizationTypeId: type.id,
         isActive: true
@@ -495,6 +533,16 @@ export class AdminController {
     return this.prisma.organization.update({
       where: { id: orgId },
       data: { supportContactEmail: body.supportContactEmail || null },
+      include: { organizationType: true }
+    });
+  }
+
+  @Patch('orgs/:orgId/reminder-notifications')
+  async updateOrgReminderNotifications(@Req() req: any, @Param('orgId') orgId: string, @Body() body: { reminderNotificationsEnabled?: boolean }) {
+    this.assertAdmin(req);
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: { reminderNotificationsEnabled: body.reminderNotificationsEnabled !== false },
       include: { organizationType: true }
     });
   }
