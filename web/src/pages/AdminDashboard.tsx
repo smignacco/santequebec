@@ -61,8 +61,12 @@ export function AdminDashboard() {
   const [webexNotifyOnSubmit, setWebexNotifyOnSubmit] = useState(true);
   const [webexNotifyOnHelp, setWebexNotifyOnHelp] = useState(true);
   const [webexNotifyOnLogin, setWebexNotifyOnLogin] = useState(false);
+  const [webexNotifyOnReminder, setWebexNotifyOnReminder] = useState(true);
+  const [reminderEmailEnabled, setReminderEmailEnabled] = useState(true);
+  const [reminderBusinessDays, setReminderBusinessDays] = useState(5);
   const [webexSpaces, setWebexSpaces] = useState<Array<{ id: string; title: string }>>([]);
   const [isLoadingWebexSpaces, setIsLoadingWebexSpaces] = useState(false);
+  const [pendingReminderApprovals, setPendingReminderApprovals] = useState<any[]>([]);
   const [welcomeVideoFile, setWelcomeVideoFile] = useState<File | null>(null);
   const [welcomeVideoUploadPercent, setWelcomeVideoUploadPercent] = useState(0);
   const [isUploadingWelcomeVideo, setIsUploadingWelcomeVideo] = useState(false);
@@ -101,10 +105,18 @@ export function AdminDashboard() {
     setWebexNotifyOnSubmit(data?.webexNotifyOnSubmit !== false);
     setWebexNotifyOnHelp(data?.webexNotifyOnHelp !== false);
     setWebexNotifyOnLogin(Boolean(data?.webexNotifyOnLogin));
+    setWebexNotifyOnReminder(data?.webexNotifyOnReminder !== false);
+    setReminderEmailEnabled(data?.reminderEmailEnabled !== false);
+    setReminderBusinessDays(Math.max(1, Number(data?.reminderBusinessDays) || 5));
+  };
+
+  const loadPendingReminderApprovals = async () => {
+    const rows = await api('/admin/reminders/pending-approvals');
+    setPendingReminderApprovals(Array.isArray(rows) ? rows : []);
   };
 
   useEffect(() => {
-    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
+    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
 
   useEffect(() => {
@@ -356,6 +368,17 @@ export function AdminDashboard() {
     await loadOrgDetails(selectedOrgId);
   };
 
+  const updateReminderNotifications = async (enabled: boolean) => {
+    if (!selectedOrgId) return;
+    await api(`/admin/orgs/${selectedOrgId}/reminder-notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reminderNotificationsEnabled: enabled })
+    });
+    setMessage(`Relances courriel ${enabled ? 'activées' : 'désactivées'} pour cette organisation.`);
+    await loadOrgs();
+    await loadOrgDetails(selectedOrgId);
+  };
+
   const updateOrgPin = async () => {
     if (!selectedOrgId) return;
     if (pinDraft.trim().length < 4) {
@@ -433,7 +456,10 @@ export function AdminDashboard() {
         webexRoomId: webexRoomId.trim() || null,
         webexNotifyOnSubmit,
         webexNotifyOnHelp,
-        webexNotifyOnLogin
+        webexNotifyOnLogin,
+        webexNotifyOnReminder,
+        reminderEmailEnabled,
+        reminderBusinessDays: Math.max(1, Number(reminderBusinessDays) || 1)
       })
     });
     setMessage('Configuration Webex mise à jour.');
@@ -443,6 +469,22 @@ export function AdminDashboard() {
   const testWebexSettings = async () => {
     const out = await api('/admin/app-settings/webex/test', { method: 'POST' });
     setMessage(out?.message || (out?.ok ? 'Connexion Webex valide.' : 'Échec de connexion Webex.'));
+  };
+
+  const approveReminder = async (id: string) => {
+    const out = await api(`/admin/reminders/${id}/approve`, { method: 'POST' });
+    setMessage(out?.message || 'Relance approuvée.');
+    await loadPendingReminderApprovals();
+  };
+
+  const rejectReminder = async (id: string) => {
+    const reason = window.prompt('Raison du rejet (optionnel):') || '';
+    const out = await api(`/admin/reminders/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() || null })
+    });
+    setMessage(out?.message || 'Relance rejetée.');
+    await loadPendingReminderApprovals();
   };
 
   const loadWebexSpaces = async () => {
@@ -692,9 +734,66 @@ export function AdminDashboard() {
             <input type="checkbox" checked={webexNotifyOnLogin} onChange={(e) => setWebexNotifyOnLogin(e.target.checked)} />
             <span>Notifier quand un usager d&apos;organisation se connecte</span>
           </label>
+          <label className="button-row">
+            <input type="checkbox" checked={webexNotifyOnReminder} onChange={(e) => setWebexNotifyOnReminder(e.target.checked)} />
+            <span>Notifier quand une relance inventaire est envoyée</span>
+          </label>
+          <label className="button-row">
+            <input type="checkbox" checked={reminderEmailEnabled} onChange={(e) => setReminderEmailEnabled(e.target.checked)} />
+            <span>Activer le module de relance courriel (global)</span>
+          </label>
+          <label className="stack" htmlFor="reminderBusinessDays">
+            <span>Relancer après X jours ouvrables depuis la dernière connexion</span>
+            <input
+              id="reminderBusinessDays"
+              className="input"
+              type="number"
+              min={1}
+              value={reminderBusinessDays}
+              onChange={(e) => setReminderBusinessDays(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </label>
           <div className="button-row">
             <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer Webex</button>
             <button className="button secondary" type="button" onClick={testWebexSettings}>Tester la connexion</button>
+            <button className="button secondary" type="button" onClick={loadPendingReminderApprovals}>Actualiser les approbations</button>
+          </div>
+          <div className="stack">
+            <h4>Approbation des relances courriel</h4>
+            <p>Les relances détectées automatiquement sont mises en attente ici avant envoi.</p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Organisation</th>
+                    <th>Destinataire</th>
+                    <th>Progression</th>
+                    <th>Demandée le</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingReminderApprovals.length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>Aucune relance en attente d&apos;approbation.</td>
+                    </tr>
+                  ) : pendingReminderApprovals.map((row: any) => (
+                    <tr key={row.id}>
+                      <td>{row.organization?.displayName || 'Organisation'} ({row.organization?.orgCode || 'N/A'})</td>
+                      <td>{row.recipientEmail}</td>
+                      <td>{row.remainingCount}/{row.totalCount}</td>
+                      <td>{new Date(row.requestedAt).toLocaleString('fr-CA')}</td>
+                      <td>
+                        <div className="button-row">
+                          <button className="button" type="button" onClick={() => approveReminder(row.id)}>Approuver & envoyer</button>
+                          <button className="button secondary" type="button" onClick={() => rejectReminder(row.id)}>Rejeter</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       ) : view === 'CREATE' ? (
@@ -856,6 +955,16 @@ export function AdminDashboard() {
               <button className="button" type="button" onClick={updateSupportContact}>Enregistrer</button>
             </div>
             <p>Valeur actuelle: {details.org.supportContactEmail || 'Non configuré'}</p>
+          </div>
+          <div className="stack">
+            <label className="button-row">
+              <input
+                type="checkbox"
+                checked={details.org.reminderNotificationsEnabled !== false}
+                onChange={(e) => updateReminderNotifications(e.target.checked)}
+              />
+              <span>Activer les relances automatisées pour cette organisation</span>
+            </label>
           </div>
           <div className="stack">
             <label htmlFor="orgAccessPin"><strong>NIP de l&apos;organisation</strong></label>
