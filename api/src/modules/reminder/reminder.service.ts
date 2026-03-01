@@ -76,7 +76,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
             scopeId: organization.id,
             action: 'ORG_LOGIN'
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, actorName: true, actorEmail: true, createdAt: true, detailsJson: true }
         });
 
         if (!latestLogin) continue;
@@ -211,9 +212,19 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       return { ok: false, message: 'Le module de relance courriel est désactivé globalement.' };
     }
 
+    const loginAuditLog = await this.prisma.auditLog.findUnique({
+      where: { id: reminder.loginAuditLogId },
+      select: { actorName: true, detailsJson: true }
+    });
+    const loginContext = this.parseLoginContext(loginAuditLog?.detailsJson);
+
     await this.sendReminderEmail({
       to: reminder.recipientEmail,
       organizationName: reminder.organization.displayName,
+      orgCode: reminder.organization.orgCode,
+      pin: loginContext.pin,
+      fullName: loginContext.name || loginAuditLog?.actorName || undefined,
+      email: reminder.recipientEmail,
       remainingCount: reminder.remainingCount,
       totalCount: reminder.totalCount,
       supportContactEmail: reminder.organization.supportContactEmail || undefined
@@ -299,6 +310,10 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     await this.sendReminderEmail({
       to: recipientEmail,
       organizationName: 'Organisation de test',
+      orgCode: 'ORG-TEST',
+      pin: '1234',
+      fullName: 'Utilisateur Test',
+      email: recipientEmail,
       remainingCount: 7,
       totalCount: 42,
       supportContactEmail: input.admin.email
@@ -322,10 +337,16 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async sendReminderEmail(payload: { to: string; organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
+  private async sendReminderEmail(payload: { to: string; organizationName: string; orgCode?: string; pin?: string; fullName?: string; email?: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
     const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
+    const inventoryAccessUrl = this.buildInventoryAccessUrl(payload);
     const placeholders = {
       organizationName: payload.organizationName,
+      orgCode: payload.orgCode || '',
+      pin: payload.pin || '',
+      fullName: payload.fullName || '',
+      email: payload.email || payload.to,
+      inventoryAccessUrl,
       remainingCount: String(payload.remainingCount),
       totalCount: String(payload.totalCount),
       supportContactEmail: payload.supportContactEmail || '',
@@ -349,13 +370,15 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         `L'inventaire de l'organisation ${payload.organizationName} est toujours en cours de validation.`,
         `Il reste ${payload.remainingCount} éléments sur ${payload.totalCount} éléments à valider.`,
         '',
+        `Accéder à votre inventaire : ${inventoryAccessUrl}`,
+        '',
         placeholders.supportInstructions,
         '',
         'Merci.'
       ].join('\r\n')
     );
 
-    const defaultHtmlBody = this.buildReminderHtmlEmail(payload);
+    const defaultHtmlBody = this.buildReminderHtmlEmail({ ...payload, inventoryAccessUrl });
     const htmlBody = this.applyTemplate(settings?.reminderEmailHtmlTemplate, placeholders, defaultHtmlBody);
 
     await this.sendSmtpMail({
@@ -369,7 +392,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private buildReminderHtmlEmail(payload: { organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
+  private buildReminderHtmlEmail(payload: { organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string; inventoryAccessUrl: string }) {
     const safeOrg = this.escapeHtml(payload.organizationName);
     const remainingCount = payload.remainingCount;
     const totalCount = payload.totalCount;
@@ -449,6 +472,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
               <td style="padding:8px 30px 0;">
                 <p style="margin:0; font-size:16px; line-height:1.7; color:#102a43;"><strong>Bonjour,</strong></p>
                 <p style="margin:12px 0 0; font-size:15px; line-height:1.75; color:#102a43;">L’inventaire de l’organisation <strong>${safeOrg}</strong> est toujours en cours de validation. Merci de compléter les éléments restants dès que possible.</p>
+                <p style="margin:16px 0 0;"><a href="${this.escapeHtml(payload.inventoryAccessUrl)}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#0f6ecd; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">Accéder à mon inventaire</a></p>
+                <p style="margin:10px 0 0; font-size:12px; line-height:1.6; color:#486581; word-break:break-all;">Ou copiez ce lien&nbsp;: ${this.escapeHtml(payload.inventoryAccessUrl)}</p>
               </td>
             </tr>
             <tr>
@@ -483,6 +508,43 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   </body>
 </html>
 `.trim();
+  }
+
+
+  private parseLoginContext(detailsJson: string | null | undefined) {
+    if (!detailsJson) return { pin: '', name: '' };
+
+    try {
+      const parsed = JSON.parse(detailsJson) as { pin?: string; name?: string };
+      return {
+        pin: typeof parsed.pin === 'string' ? parsed.pin : '',
+        name: typeof parsed.name === 'string' ? parsed.name : ''
+      };
+    } catch {
+      return { pin: '', name: '' };
+    }
+  }
+
+  private buildInventoryAccessUrl(payload: { orgCode?: string; pin?: string; fullName?: string; email?: string }) {
+    const baseUrl = process.env.PUBLIC_APP_URL?.trim() || 'http://localhost:8080';
+
+    let parsed: URL;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      parsed = new URL('http://localhost:8080');
+    }
+
+    parsed.pathname = '/login';
+    parsed.search = '';
+
+    const params = parsed.searchParams;
+    if (payload.orgCode) params.set('orgCode', payload.orgCode);
+    if (payload.pin) params.set('pin', payload.pin);
+    if (payload.fullName) params.set('name', payload.fullName);
+    if (payload.email) params.set('email', payload.email);
+
+    return parsed.toString();
   }
 
   private applyTemplate(template: string | null | undefined, values: Record<string, string>, fallback: string) {

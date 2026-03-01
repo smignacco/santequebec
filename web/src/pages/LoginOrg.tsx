@@ -6,7 +6,15 @@ import { saveToken } from '../auth';
 export function LoginOrg() {
   const [searchParams] = useSearchParams();
   const orgCodeFromUrl = (searchParams.get('orgCode') || '').trim();
-  const [orgForm, setOrgForm] = useState({ orgCode: orgCodeFromUrl, pin: '', name: '', email: '' });
+  const pinFromUrl = (searchParams.get('pin') || '').trim();
+  const nameFromUrl = (searchParams.get('name') || '').trim();
+  const emailFromUrl = (searchParams.get('email') || '').trim();
+  const [orgForm, setOrgForm] = useState({
+    orgCode: orgCodeFromUrl,
+    pin: pinFromUrl,
+    name: nameFromUrl,
+    email: emailFromUrl
+  });
   const [adminForm, setAdminForm] = useState({ username: '', password: '' });
   const [mode, setMode] = useState<'ORG' | 'ADMIN'>('ORG');
   const [error, setError] = useState('');
@@ -36,9 +44,14 @@ export function LoginOrg() {
   };
 
   useEffect(() => {
-    if (!orgCodeFromUrl) return;
-    setOrgForm((prev) => ({ ...prev, orgCode: orgCodeFromUrl }));
-  }, [orgCodeFromUrl]);
+    setOrgForm((prev) => ({
+      ...prev,
+      orgCode: orgCodeFromUrl || prev.orgCode,
+      pin: pinFromUrl || prev.pin,
+      name: nameFromUrl || prev.name,
+      email: emailFromUrl || prev.email
+    }));
+  }, [emailFromUrl, nameFromUrl, orgCodeFromUrl, pinFromUrl]);
 
   const submitOrg = async (e: FormEvent) => {
     e.preventDefault();
