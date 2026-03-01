@@ -388,7 +388,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
               <p style="margin:0 0 12px; font-size:15px; line-height:1.6; color:#0f2a47;"><strong>Besoin d’assistance&nbsp;?</strong> Contactez votre personne-ressource via Microsoft Teams.</p>
               <a href="${teamsLink}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#4b53bc; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">
                 <img src="${teamsIconUrl}" width="18" height="18" alt="Microsoft Teams" style="vertical-align:middle; margin-right:8px; border:0;" />
-                Contacter ${this.escapeHtml(payload.supportContactEmail || '')} sur Teams
+                Microsoft Teams - Joindre votre personne ressource
               </a>
             </td>
           </tr>
@@ -422,7 +422,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                   <tr>
                     <td valign="middle">
-                      <img src="${ciscoLogoUrl}" width="132" alt="Cisco" style="display:block; border:0;" />
+                      <img src="${ciscoLogoUrl}" width="66" alt="Cisco" style="display:block; border:0;" />
                     </td>
                   </tr>
                 </table>
@@ -438,7 +438,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate; border-spacing:0; background:#f2f5f9; border:1px solid #d9e1ea; border-radius:8px;">
                   <tr>
                     <td style="padding:24px 22px;">
-                      <h1 style="margin:0; font-size:39px; line-height:1.25; color:#102a43;">Relance de validation d’inventaire</h1>
+                      <h1 style="margin:0; font-size:19.5px; line-height:1.25; color:#102a43;">Relance de validation d’inventaire</h1>
                       <p style="margin:12px 0 0; font-size:15px; line-height:1.65; color:#334e68;">Organisation concernée&nbsp;: <strong>${safeOrg}</strong></p>
                     </td>
                   </tr>
@@ -468,7 +468,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
             <tr>
               <td style="padding:14px 30px 28px;">
                 <p style="margin:0; font-size:15px; line-height:1.7; color:#102a43;">Merci de votre collaboration.</p>
-                <p style="margin:8px 0 0; font-size:14px; color:#486581;">Équipe de coordination Cisco · Santé Québec</p>
+                <p style="margin:8px 0 0; font-size:14px; color:#486581;">Équipe de compte Cisco en collaboration avec Santé Québec</p>
               </td>
             </tr>
             <tr>
