@@ -648,6 +648,11 @@ export class AdminController {
       throw new ConflictException('Aucun accès actif trouvé pour cette organisation. Veuillez publier un inventaire avant de modifier le NIP.');
     }
 
+    await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { loginPin: pin }
+    });
+
     return { ok: true };
   }
 
@@ -695,6 +700,10 @@ export class AdminController {
     const pin = (body?.pin || '').trim() || String(randomInt(100000, 999999));
     const pinHash = await argon2.hash(pin);
     await this.prisma.orgAccess.upsert({ where: { organizationId_batchId: { organizationId: orgId, batchId } }, update: { pinHash, isEnabled: true }, create: { organizationId: orgId, batchId, pinHash } });
+    await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { loginPin: pin }
+    });
     return { pin };
   }
 
