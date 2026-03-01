@@ -64,6 +64,7 @@ export function AdminDashboard() {
   const [webexNotifyOnReminder, setWebexNotifyOnReminder] = useState(true);
   const [reminderEmailEnabled, setReminderEmailEnabled] = useState(true);
   const [reminderBusinessDays, setReminderBusinessDays] = useState(5);
+  const [reminderFollowUpBusinessDays, setReminderFollowUpBusinessDays] = useState(5);
   const [reminderEmailSubjectTemplate, setReminderEmailSubjectTemplate] = useState('');
   const [reminderEmailTextTemplate, setReminderEmailTextTemplate] = useState('');
   const [reminderEmailHtmlTemplate, setReminderEmailHtmlTemplate] = useState('');
@@ -112,6 +113,7 @@ export function AdminDashboard() {
     setWebexNotifyOnReminder(data?.webexNotifyOnReminder !== false);
     setReminderEmailEnabled(data?.reminderEmailEnabled !== false);
     setReminderBusinessDays(Math.max(1, Number(data?.reminderBusinessDays) || 5));
+    setReminderFollowUpBusinessDays(Math.max(1, Number(data?.reminderFollowUpBusinessDays) || 5));
     setReminderEmailSubjectTemplate(data?.reminderEmailSubjectTemplate || '');
     setReminderEmailTextTemplate(data?.reminderEmailTextTemplate || '');
     setReminderEmailHtmlTemplate(data?.reminderEmailHtmlTemplate || '');
@@ -491,6 +493,7 @@ export function AdminDashboard() {
         webexNotifyOnReminder,
         reminderEmailEnabled,
         reminderBusinessDays: Math.max(1, Number(reminderBusinessDays) || 1),
+        reminderFollowUpBusinessDays: Math.max(1, Number(reminderFollowUpBusinessDays) || 1),
         reminderEmailSubjectTemplate: reminderEmailSubjectTemplate.trim() || null,
         reminderEmailTextTemplate: reminderEmailTextTemplate.trim() || null,
         reminderEmailHtmlTemplate: reminderEmailHtmlTemplate.trim() || null
@@ -795,6 +798,17 @@ export function AdminDashboard() {
               min={1}
               value={reminderBusinessDays}
               onChange={(e) => setReminderBusinessDays(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </label>
+          <label className="stack" htmlFor="reminderFollowUpBusinessDays">
+            <span>Relance subséquente après X jours ouvrables depuis la dernière relance envoyée</span>
+            <input
+              id="reminderFollowUpBusinessDays"
+              className="input"
+              type="number"
+              min={1}
+              value={reminderFollowUpBusinessDays}
+              onChange={(e) => setReminderFollowUpBusinessDays(Math.max(1, Number(e.target.value) || 1))}
             />
           </label>
           <label className="stack" htmlFor="reminderEmailSubjectTemplate">
