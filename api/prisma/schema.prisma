@@ -24,6 +24,7 @@ model OrganizationType {
 model Organization {
   id                 String           @id @default(cuid())
   orgCode            String           @unique
+  loginPin           String?
   regionCode         String
   displayName        String
   supportContactEmail String?

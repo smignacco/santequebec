@@ -234,7 +234,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       to: reminder.recipientEmail,
       organizationName: reminder.organization.displayName,
       orgCode: reminder.organization.orgCode,
-      pin: loginContext.pin,
+      pin: reminder.organization.loginPin || loginContext.pin,
       fullName: loginContext.name || loginAuditLog?.actorName || undefined,
       email: reminder.recipientEmail,
       remainingCount: reminder.remainingCount,
@@ -336,7 +336,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       to: reminder.recipientEmail,
       organizationName: reminder.organization.displayName,
       orgCode: reminder.organization.orgCode,
-      pin: loginContext.pin,
+      pin: reminder.organization.loginPin || loginContext.pin,
       fullName: loginContext.name || loginAuditLog?.actorName || undefined,
       email: reminder.recipientEmail,
       remainingCount: reminder.remainingCount,
@@ -585,13 +585,13 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private buildInventoryAccessUrl(payload: { orgCode?: string; pin?: string; fullName?: string; email?: string }) {
-    const baseUrl = process.env.PUBLIC_APP_URL?.trim() || 'http://localhost:8080';
+    const baseUrl = process.env.PUBLIC_APP_URL?.trim() || 'https://santequebec.cloudapps.cisco.com';
 
     let parsed: URL;
     try {
       parsed = new URL(baseUrl);
     } catch {
-      parsed = new URL('http://localhost:8080');
+      parsed = new URL('https://santequebec.cloudapps.cisco.com');
     }
 
     parsed.pathname = '/login';
