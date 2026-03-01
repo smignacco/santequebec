@@ -71,17 +71,19 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const organization of organizations) {
-        const latestLogin = await this.prisma.auditLog.findFirst({
+        const recentLogins = await this.prisma.auditLog.findMany({
           where: {
             scope: 'ORG_ACCESS',
             scopeId: organization.id,
-            action: 'ORG_LOGIN'
+            action: 'ORG_LOGIN',
+            actorEmail: { not: '' }
           },
           orderBy: { createdAt: 'desc' },
+          distinct: ['actorEmail'],
           select: { id: true, actorName: true, actorEmail: true, createdAt: true, detailsJson: true }
         });
 
-        if (!latestLogin?.actorEmail) continue;
+        if (!recentLogins.length) continue;
 
         const latestPendingInventory = await this.prisma.inventoryFile.findFirst({
           where: {
@@ -92,65 +94,66 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         });
         if (!latestPendingInventory) continue;
 
-        const latestReminder = await this.prisma.reminderApproval.findFirst({
-          where: {
-            inventoryFileId: latestPendingInventory.id,
-            recipientEmail: latestLogin.actorEmail,
-            status: { in: ['PENDING_APPROVAL', 'APPROVED', 'SENT'] }
-          },
-          orderBy: { requestedAt: 'desc' }
-        });
-
-        if (latestReminder?.status === 'PENDING_APPROVAL') continue;
-
-        const referenceDate = latestReminder
-          ? (latestReminder.sentAt || latestReminder.approvedAt || latestReminder.requestedAt)
-          : latestLogin.createdAt;
-        const requiredBusinessDays = latestReminder ? reminderFollowUpBusinessDays : reminderBusinessDays;
-        const elapsedBusinessDays = this.businessDaysBetween(referenceDate, now);
-        if (elapsedBusinessDays < requiredBusinessDays) continue;
-
         const [confirmedCount, totalCount] = await Promise.all([
           this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPendingInventory.id, status: 'CONFIRMED' } }),
           this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPendingInventory.id } })
         ]);
 
         const remainingCount = Math.max(totalCount - confirmedCount, 0);
-        const recipient = latestLogin.actorEmail;
 
-        await this.prisma.reminderApproval.create({
-          data: {
-            organizationId: organization.id,
-            inventoryFileId: latestPendingInventory.id,
-            loginAuditLogId: latestLogin.id,
-            recipientEmail: recipient,
-            remainingCount,
-            totalCount,
-            status: 'PENDING_APPROVAL'
-          }
-        });
+        for (const login of recentLogins) {
+          const latestReminder = await this.prisma.reminderApproval.findFirst({
+            where: {
+              inventoryFileId: latestPendingInventory.id,
+              recipientEmail: login.actorEmail,
+              status: { in: ['PENDING_APPROVAL', 'APPROVED', 'SENT'] }
+            },
+            orderBy: { requestedAt: 'desc' }
+          });
 
-        await this.prisma.auditLog.create({
-          data: {
-            scope: 'INVENTORY_FILE',
-            scopeId: latestPendingInventory.id,
-            actorType: 'SYSTEM',
-            actorName: 'System Reminder',
-            actorEmail: 'santequebec@cisco.com',
-            action: 'ORG_REMINDER_QUEUED',
-            detailsJson: JSON.stringify({
-              to: recipient,
+          if (latestReminder?.status === 'PENDING_APPROVAL') continue;
+
+          const referenceDate = latestReminder
+            ? (latestReminder.sentAt || latestReminder.approvedAt || latestReminder.requestedAt)
+            : login.createdAt;
+          const requiredBusinessDays = latestReminder ? reminderFollowUpBusinessDays : reminderBusinessDays;
+          const elapsedBusinessDays = this.businessDaysBetween(referenceDate, now);
+          if (elapsedBusinessDays < requiredBusinessDays) continue;
+
+          await this.prisma.reminderApproval.create({
+            data: {
               organizationId: organization.id,
-              elapsedBusinessDays,
-              requiredBusinessDays,
-              isFollowUpReminder: Boolean(latestReminder),
+              inventoryFileId: latestPendingInventory.id,
+              loginAuditLogId: login.id,
+              recipientEmail: login.actorEmail,
               remainingCount,
-              totalCount
-            })
-          }
-        });
+              totalCount,
+              status: 'PENDING_APPROVAL'
+            }
+          });
 
-        queuedCount += 1;
+          await this.prisma.auditLog.create({
+            data: {
+              scope: 'INVENTORY_FILE',
+              scopeId: latestPendingInventory.id,
+              actorType: 'SYSTEM',
+              actorName: 'System Reminder',
+              actorEmail: 'santequebec@cisco.com',
+              action: 'ORG_REMINDER_QUEUED',
+              detailsJson: JSON.stringify({
+                to: login.actorEmail,
+                organizationId: organization.id,
+                elapsedBusinessDays,
+                requiredBusinessDays,
+                isFollowUpReminder: Boolean(latestReminder),
+                remainingCount,
+                totalCount
+              })
+            }
+          });
+
+          queuedCount += 1;
+        }
       }
 
       return { queuedCount, skippedBecauseAlreadyRunning: false };
