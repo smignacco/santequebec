@@ -885,7 +885,7 @@ export function AdminDashboard() {
                     <tr key={row.id}>
                       <td>{row.organization?.displayName || 'Organisation'} ({row.organization?.orgCode || 'N/A'})</td>
                       <td>{row.recipientEmail}</td>
-                      <td>{row.remainingCount}/{row.totalCount}</td>
+                      <td>{Math.max((row.totalCount || 0) - (row.remainingCount || 0), 0)}/{row.totalCount || 0}</td>
                       <td>{new Date(row.requestedAt).toLocaleString('fr-CA')}</td>
                       <td>
                         <div className="button-row">
