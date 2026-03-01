@@ -1,13 +1,14 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { ThrottleGuard } from './throttle.guard';
 
 class OrgLoginDto {
-  @IsString() orgCode!: string;
-  @IsString() @MinLength(4) pin!: string;
+  @IsOptional() @IsString() orgCode?: string;
+  @IsOptional() @IsString() @MinLength(4) pin?: string;
   @IsString() name!: string;
   @IsEmail() email!: string;
+  @IsOptional() @IsString() loginToken?: string;
 }
 
 class AdminLoginDto {
