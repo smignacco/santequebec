@@ -52,6 +52,7 @@ model AppSettings {
   webexNotifyOnReminder Boolean @default(true)
   reminderEmailEnabled Boolean @default(true)
   reminderBusinessDays Int @default(5)
+  reminderFollowUpBusinessDays Int @default(5)
   reminderEmailSubjectTemplate String?
   reminderEmailTextTemplate String?
   reminderEmailHtmlTemplate String?
@@ -126,7 +127,6 @@ model ReminderApproval {
 
   @@index([organizationId, status])
   @@index([status, requestedAt])
-  @@unique([inventoryFileId, loginAuditLogId])
 }
 
 model InventoryItem {

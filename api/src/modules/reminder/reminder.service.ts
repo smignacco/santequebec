@@ -63,6 +63,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       }
 
       const reminderBusinessDays = Math.max(1, settings.reminderBusinessDays || 1);
+      const reminderFollowUpBusinessDays = Math.max(1, settings.reminderFollowUpBusinessDays || 1);
       const now = new Date();
 
       const organizations = await this.prisma.organization.findMany({
@@ -79,42 +80,47 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
           orderBy: { createdAt: 'desc' }
         });
 
-        if (!latestLogin) continue;
+        if (!latestLogin?.actorEmail) continue;
 
-        const elapsedBusinessDays = this.businessDaysBetween(latestLogin.createdAt, now);
-        if (elapsedBusinessDays < reminderBusinessDays) continue;
-
-        const latestPublished = await this.prisma.inventoryFile.findFirst({
+        const latestPendingInventory = await this.prisma.inventoryFile.findFirst({
           where: {
             organizationId: organization.id,
-            status: 'PUBLISHED'
+            status: { in: ['NOT_SUBMITTED', 'PUBLISHED'] }
           },
           orderBy: { importedAt: 'desc' }
         });
-        if (!latestPublished) continue;
+        if (!latestPendingInventory) continue;
 
-        const existingRequest = await this.prisma.reminderApproval.findFirst({
+        const latestReminder = await this.prisma.reminderApproval.findFirst({
           where: {
-            inventoryFileId: latestPublished.id,
-            loginAuditLogId: latestLogin.id,
+            inventoryFileId: latestPendingInventory.id,
+            recipientEmail: latestLogin.actorEmail,
             status: { in: ['PENDING_APPROVAL', 'APPROVED', 'SENT'] }
-          }
+          },
+          orderBy: { requestedAt: 'desc' }
         });
-        if (existingRequest) continue;
+
+        if (latestReminder?.status === 'PENDING_APPROVAL') continue;
+
+        const referenceDate = latestReminder
+          ? (latestReminder.sentAt || latestReminder.approvedAt || latestReminder.requestedAt)
+          : latestLogin.createdAt;
+        const requiredBusinessDays = latestReminder ? reminderFollowUpBusinessDays : reminderBusinessDays;
+        const elapsedBusinessDays = this.businessDaysBetween(referenceDate, now);
+        if (elapsedBusinessDays < requiredBusinessDays) continue;
 
         const [confirmedCount, totalCount] = await Promise.all([
-          this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPublished.id, status: 'CONFIRMED' } }),
-          this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPublished.id } })
+          this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPendingInventory.id, status: 'CONFIRMED' } }),
+          this.prisma.inventoryItem.count({ where: { inventoryFileId: latestPendingInventory.id } })
         ]);
 
         const remainingCount = Math.max(totalCount - confirmedCount, 0);
         const recipient = latestLogin.actorEmail;
-        if (!recipient) continue;
 
         await this.prisma.reminderApproval.create({
           data: {
             organizationId: organization.id,
-            inventoryFileId: latestPublished.id,
+            inventoryFileId: latestPendingInventory.id,
             loginAuditLogId: latestLogin.id,
             recipientEmail: recipient,
             remainingCount,
@@ -126,7 +132,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.auditLog.create({
           data: {
             scope: 'INVENTORY_FILE',
-            scopeId: latestPublished.id,
+            scopeId: latestPendingInventory.id,
             actorType: 'SYSTEM',
             actorName: 'System Reminder',
             actorEmail: 'santequebec@cisco.com',
@@ -135,6 +141,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
               to: recipient,
               organizationId: organization.id,
               elapsedBusinessDays,
+              requiredBusinessDays,
+              isFollowUpReminder: Boolean(latestReminder),
               remainingCount,
               totalCount
             })
@@ -149,6 +157,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       this.isRunning = false;
     }
   }
+
 
   async runCycleManually(admin: { name: string; email: string }) {
     const result = await this.runCycle();

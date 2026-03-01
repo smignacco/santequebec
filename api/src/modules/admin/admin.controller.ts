@@ -153,6 +153,7 @@ export class AdminController {
       webexNotifyOnReminder: settings?.webexNotifyOnReminder ?? true,
       reminderEmailEnabled: settings?.reminderEmailEnabled ?? true,
       reminderBusinessDays: settings?.reminderBusinessDays ?? 5,
+      reminderFollowUpBusinessDays: settings?.reminderFollowUpBusinessDays ?? 5,
       reminderEmailSubjectTemplate: settings?.reminderEmailSubjectTemplate || '',
       reminderEmailTextTemplate: settings?.reminderEmailTextTemplate || '',
       reminderEmailHtmlTemplate: settings?.reminderEmailHtmlTemplate || ''
@@ -194,7 +195,7 @@ export class AdminController {
 
 
   @Patch('app-settings/webex')
-  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean; webexNotifyOnReminder?: boolean; reminderEmailEnabled?: boolean; reminderBusinessDays?: number; reminderEmailSubjectTemplate?: string | null; reminderEmailTextTemplate?: string | null; reminderEmailHtmlTemplate?: string | null }) {
+  async updateWebexSettings(@Req() req: any, @Body() body: { webexEnabled?: boolean; webexBotToken?: string | null; webexRoomId?: string | null; webexNotifyOnSubmit?: boolean; webexNotifyOnHelp?: boolean; webexNotifyOnLogin?: boolean; webexNotifyOnReminder?: boolean; reminderEmailEnabled?: boolean; reminderBusinessDays?: number; reminderFollowUpBusinessDays?: number; reminderEmailSubjectTemplate?: string | null; reminderEmailTextTemplate?: string | null; reminderEmailHtmlTemplate?: string | null }) {
     this.assertAdmin(req);
 
     const webexBotToken = typeof body.webexBotToken === 'string' && body.webexBotToken.trim()
@@ -227,6 +228,7 @@ export class AdminController {
         webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
         reminderEmailEnabled: body.reminderEmailEnabled !== false,
         reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5),
+        reminderFollowUpBusinessDays: Math.max(1, Number(body.reminderFollowUpBusinessDays) || 5),
         reminderEmailSubjectTemplate,
         reminderEmailTextTemplate,
         reminderEmailHtmlTemplate
@@ -242,6 +244,7 @@ export class AdminController {
         webexNotifyOnReminder: body.webexNotifyOnReminder !== false,
         reminderEmailEnabled: body.reminderEmailEnabled !== false,
         reminderBusinessDays: Math.max(1, Number(body.reminderBusinessDays) || 5),
+        reminderFollowUpBusinessDays: Math.max(1, Number(body.reminderFollowUpBusinessDays) || 5),
         reminderEmailSubjectTemplate,
         reminderEmailTextTemplate,
         reminderEmailHtmlTemplate
@@ -258,6 +261,7 @@ export class AdminController {
       webexNotifyOnReminder: settings.webexNotifyOnReminder,
       reminderEmailEnabled: settings.reminderEmailEnabled,
       reminderBusinessDays: settings.reminderBusinessDays,
+      reminderFollowUpBusinessDays: settings.reminderFollowUpBusinessDays,
       reminderEmailSubjectTemplate: settings.reminderEmailSubjectTemplate || '',
       reminderEmailTextTemplate: settings.reminderEmailTextTemplate || '',
       reminderEmailHtmlTemplate: settings.reminderEmailHtmlTemplate || ''
