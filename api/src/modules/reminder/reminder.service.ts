@@ -313,6 +313,47 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     return { ok: true, message: 'Relance rejetée.' };
   }
 
+  async previewPendingReminder(reminderId: string) {
+    const reminder = await this.prisma.reminderApproval.findUnique({
+      where: { id: reminderId },
+      include: { organization: true }
+    });
+
+    if (!reminder || reminder.status !== 'PENDING_APPROVAL') {
+      return { ok: false, message: 'Relance introuvable ou déjà traitée.' };
+    }
+
+    const loginAuditLog = await this.prisma.auditLog.findUnique({
+      where: { id: reminder.loginAuditLogId },
+      select: { actorName: true, detailsJson: true }
+    });
+    const loginContext = this.parseLoginContext(loginAuditLog?.detailsJson);
+
+    const content = await this.buildReminderEmailContent({
+      to: reminder.recipientEmail,
+      organizationName: reminder.organization.displayName,
+      orgCode: reminder.organization.orgCode,
+      pin: loginContext.pin,
+      fullName: loginContext.name || loginAuditLog?.actorName || undefined,
+      email: reminder.recipientEmail,
+      remainingCount: reminder.remainingCount,
+      totalCount: reminder.totalCount,
+      supportContactEmail: reminder.organization.supportContactEmail || undefined
+    });
+
+    return {
+      ok: true,
+      subject: content.subject,
+      textBody: content.textBody,
+      htmlBody: content.htmlBody,
+      recipientEmail: reminder.recipientEmail,
+      organization: {
+        displayName: reminder.organization.displayName,
+        orgCode: reminder.organization.orgCode
+      }
+    };
+  }
+
   async sendTestReminderEmail(input: { recipientEmail: string; admin: { name: string; email: string } }) {
     const recipientEmail = input.recipientEmail.trim().toLowerCase();
 
@@ -346,7 +387,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async sendReminderEmail(payload: { to: string; organizationName: string; orgCode?: string; pin?: string; fullName?: string; email?: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
+  private async buildReminderEmailContent(payload: { to: string; organizationName: string; orgCode?: string; pin?: string; fullName?: string; email?: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
     const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
     const inventoryAccessUrl = this.buildInventoryAccessUrl(payload);
     const placeholders = {
@@ -361,7 +402,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       supportContactEmail: payload.supportContactEmail || '',
       supportInstructions: payload.supportContactEmail
         ? `Assistance MS Teams: contactez ${payload.supportContactEmail}`
-        : "Assistance MS Teams: utilisez le lien MS Teams de votre organisation."
+        : 'Assistance MS Teams: utilisez le lien MS Teams de votre organisation.'
     };
 
     const subject = this.applyTemplate(
@@ -390,14 +431,20 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     const defaultHtmlBody = this.buildReminderHtmlEmail({ ...payload, inventoryAccessUrl });
     const htmlBody = this.applyTemplate(settings?.reminderEmailHtmlTemplate, placeholders, defaultHtmlBody);
 
+    return { subject, textBody, htmlBody };
+  }
+
+  private async sendReminderEmail(payload: { to: string; organizationName: string; orgCode?: string; pin?: string; fullName?: string; email?: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
+    const content = await this.buildReminderEmailContent(payload);
+
     await this.sendSmtpMail({
       host: 'outbound.cisco.com',
       port: 25,
       from: 'santequebec@cisco.com',
       to: payload.to,
-      subject,
-      textBody,
-      htmlBody
+      subject: content.subject,
+      textBody: content.textBody,
+      htmlBody: content.htmlBody
     });
   }
 
@@ -420,7 +467,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
               <p style="margin:0 0 12px; font-size:15px; line-height:1.6; color:#0f2a47;"><strong>Besoin d’assistance&nbsp;?</strong> Contactez votre personne-ressource via Microsoft Teams.</p>
               <a href="${teamsLink}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#4b53bc; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">
                 <img src="${teamsIconUrl}" width="18" height="18" alt="Microsoft Teams" style="vertical-align:middle; margin-right:8px; border:0;" />
-                Microsoft Teams - Joindre votre personne ressource
+                Joindre votre personne ressource
               </a>
             </td>
           </tr>
