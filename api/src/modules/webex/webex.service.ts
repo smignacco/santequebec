@@ -92,6 +92,19 @@ export class WebexService {
     ].join('\n'));
   }
 
+  async notifyReminderSent(payload: { orgName: string; orgCode: string; recipient: string; remainingCount: number; totalCount: number; remindedAt: string }) {
+    const settings = await this.loadSettings();
+    if (!settings?.webexEnabled || !settings.webexNotifyOnReminder) return;
+
+    await this.postMessage([
+      '📣 **Relance inventaire envoyée**',
+      `- Organisation: **${payload.orgName}** (${payload.orgCode})`,
+      `- Destinataire: ${payload.recipient}`,
+      `- Restant: ${payload.remainingCount}/${payload.totalCount}`,
+      `- Date: ${this.formatEasternCanadaDate(payload.remindedAt)}`
+    ].join('\n'));
+  }
+
   async listRooms(botToken?: string | null) {
     const settings = await this.loadSettings();
     const token = botToken?.trim() || settings?.webexBotToken || '';
