@@ -67,6 +67,7 @@ export function AdminDashboard() {
   const [reminderEmailSubjectTemplate, setReminderEmailSubjectTemplate] = useState('');
   const [reminderEmailTextTemplate, setReminderEmailTextTemplate] = useState('');
   const [reminderEmailHtmlTemplate, setReminderEmailHtmlTemplate] = useState('');
+  const [reminderTestRecipientEmail, setReminderTestRecipientEmail] = useState('');
   const [webexSpaces, setWebexSpaces] = useState<Array<{ id: string; title: string }>>([]);
   const [isLoadingWebexSpaces, setIsLoadingWebexSpaces] = useState(false);
   const [pendingReminderApprovals, setPendingReminderApprovals] = useState<any[]>([]);
@@ -126,6 +127,22 @@ export function AdminDashboard() {
       const out = await api('/admin/reminders/run-cycle', { method: 'POST' });
       setMessage(out?.message || 'Cycle de relance exécuté.');
       await loadPendingReminderApprovals();
+    });
+  };
+
+  const sendReminderTestEmail = async () => {
+    const recipientEmail = reminderTestRecipientEmail.trim().toLowerCase();
+    if (!recipientEmail) {
+      setMessage('Veuillez saisir une adresse courriel de test.');
+      return;
+    }
+
+    await runBusyAction('send-reminder-test-email', async () => {
+      const out = await api('/admin/reminders/test-email', {
+        method: 'POST',
+        body: JSON.stringify({ recipientEmail })
+      });
+      setMessage(out?.message || `Courriel de test envoyé à ${recipientEmail}.`);
     });
   };
 
@@ -815,8 +832,27 @@ export function AdminDashboard() {
           <p style={{ marginTop: '-8px', fontSize: '13px', color: '#5a6b7f' }}>
             Variables disponibles : {'{{organizationName}}'}, {'{{remainingCount}}'}, {'{{totalCount}}'}, {'{{supportContactEmail}}'}, {'{{supportInstructions}}'}.
           </p>
+          <label className="stack" htmlFor="reminderTestRecipientEmail">
+            <span>Adresse courriel de test</span>
+            <input
+              id="reminderTestRecipientEmail"
+              className="input"
+              type="email"
+              placeholder="admin@organisation.ca"
+              value={reminderTestRecipientEmail}
+              onChange={(e) => setReminderTestRecipientEmail(e.target.value)}
+            />
+          </label>
           <div className="button-row">
             <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer les paramètres</button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={sendReminderTestEmail}
+              disabled={isBusyAction === 'send-reminder-test-email'}
+            >
+              {isBusyAction === 'send-reminder-test-email' ? 'Envoi…' : 'Envoyer un courriel de test'}
+            </button>
             <button
               className="button secondary"
               type="button"

@@ -293,6 +293,35 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     return { ok: true, message: 'Relance rejetée.' };
   }
 
+  async sendTestReminderEmail(input: { recipientEmail: string; admin: { name: string; email: string } }) {
+    const recipientEmail = input.recipientEmail.trim().toLowerCase();
+
+    await this.sendReminderEmail({
+      to: recipientEmail,
+      organizationName: 'Organisation de test',
+      remainingCount: 7,
+      totalCount: 42,
+      supportContactEmail: input.admin.email
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        scope: 'APP_SETTINGS',
+        scopeId: 'global',
+        actorType: 'ADMIN',
+        actorName: input.admin.name,
+        actorEmail: input.admin.email,
+        action: 'ORG_REMINDER_TEST_SENT',
+        detailsJson: JSON.stringify({ to: recipientEmail })
+      }
+    });
+
+    return {
+      ok: true,
+      message: `Courriel de test envoyé à ${recipientEmail}.`
+    };
+  }
+
   private async sendReminderEmail(payload: { to: string; organizationName: string; remainingCount: number; totalCount: number; supportContactEmail?: string }) {
     const settings = await this.prisma.appSettings.findUnique({ where: { id: 'global' } });
     const placeholders = {
