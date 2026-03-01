@@ -344,7 +344,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     const safeOrg = this.escapeHtml(payload.organizationName);
     const remainingCount = payload.remainingCount;
     const totalCount = payload.totalCount;
-    const ciscoLogoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/512px-Cisco_logo_blue_2016.svg.png';
+    const ciscoLogoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/1280px-Cisco_logo_blue_2016.svg.png';
     const teamsIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg/512px-Microsoft_Office_Teams_%282018%E2%80%93present%29.svg.png';
 
     const teamsLink = payload.supportContactEmail
@@ -353,10 +353,10 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
 
     const supportCard = teamsLink
       ? `
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px; width:100%; border-collapse:separate; border-spacing:0; background:#f2f8ff; border:1px solid #d8e6ff; border-radius:12px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:24px; width:100%; border-collapse:separate; border-spacing:0; background:#f3f8ff; border:1px solid #cfe4ff; border-radius:12px;">
           <tr>
-            <td style="padding:18px 20px;">
-              <p style="margin:0 0 12px; font-size:15px; line-height:1.5; color:#0b1f33;"><strong>Besoin d’assistance&nbsp;?</strong> Contactez directement votre personne-ressource via Microsoft Teams.</p>
+            <td style="padding:18px 20px 20px;">
+              <p style="margin:0 0 12px; font-size:15px; line-height:1.6; color:#0f2a47;"><strong>Besoin d’assistance&nbsp;?</strong> Contactez votre personne-ressource via Microsoft Teams.</p>
               <a href="${teamsLink}" target="_blank" rel="noreferrer" style="display:inline-block; text-decoration:none; background:#4b53bc; color:#ffffff; font-weight:700; font-size:14px; line-height:20px; border-radius:8px; padding:10px 16px;">
                 <img src="${teamsIconUrl}" width="18" height="18" alt="Microsoft Teams" style="vertical-align:middle; margin-right:8px; border:0;" />
                 Contacter ${this.escapeHtml(payload.supportContactEmail || '')} sur Teams
@@ -366,9 +366,9 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         </table>
       `
       : `
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px; width:100%; border-collapse:separate; border-spacing:0; background:#f8f9fb; border:1px solid #e6e8ec; border-radius:12px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:24px; width:100%; border-collapse:separate; border-spacing:0; background:#f8f9fb; border:1px solid #e2e8f0; border-radius:12px;">
           <tr>
-            <td style="padding:18px 20px; font-size:14px; line-height:1.6; color:#34495e;">
+            <td style="padding:18px 20px; font-size:14px; line-height:1.6; color:#334155;">
               Pour obtenir de l’assistance, utilisez le lien Microsoft Teams de votre organisation.
             </td>
           </tr>
@@ -383,39 +383,68 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Relance inventaire</title>
   </head>
-  <body style="margin:0; padding:0; background:#eef2f7; font-family:Arial, Helvetica, sans-serif; color:#0b1f33;">
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef2f7; padding:28px 12px;">
+  <body style="margin:0; padding:0; background:#eef3f8; font-family:Arial, Helvetica, sans-serif; color:#0f2a47;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef3f8; padding:30px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="640" style="width:640px; max-width:640px; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 6px 28px rgba(21, 44, 88, 0.14);">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="680" style="width:680px; max-width:680px; background:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #d7e3f2; box-shadow:0 10px 30px rgba(15, 42, 71, 0.12);">
             <tr>
-              <td style="background:linear-gradient(90deg, #0078d4 0%, #0a66c2 100%); padding:22px 28px;">
-                <img src="${ciscoLogoUrl}" width="120" alt="Cisco" style="display:block; border:0; margin:0 0 14px;" />
-                <p style="margin:0; font-size:13px; letter-spacing:0.3px; color:#e8f4ff; text-transform:uppercase;">Plateforme Santé Québec</p>
-                <h1 style="margin:8px 0 0; font-size:24px; line-height:1.25; color:#ffffff;">Relance de validation d’inventaire</h1>
+              <td style="padding:26px 30px 14px; background:#ffffff;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                  <tr>
+                    <td valign="middle">
+                      <img src="${ciscoLogoUrl}" width="132" alt="Cisco" style="display:block; border:0;" />
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:28px 30px 30px;">
-                <p style="margin:0 0 16px; font-size:15px; line-height:1.6; color:#1f2d3d;">Bonjour,</p>
-                <p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:#1f2d3d;">L’inventaire de l’organisation <strong>${safeOrg}</strong> est toujours en cours de validation.</p>
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate; border-spacing:0; background:#f4f9ff; border:1px solid #d9eaff; border-radius:12px;">
+              <td style="padding:0 30px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;"><tr><td height="8" style="height:8px; background:#7b8ea4; font-size:0; line-height:0;">&nbsp;</td></tr></table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 30px 10px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate; border-spacing:0; background:#f2f5f9; border:1px solid #d9e1ea; border-radius:8px;">
                   <tr>
-                    <td style="padding:18px 20px;">
-                      <p style="margin:0; font-size:14px; color:#345;">Progression actuelle</p>
-                      <p style="margin:8px 0 0; font-size:28px; line-height:1.2; font-weight:700; color:#0a66c2;">${remainingCount} / ${totalCount}</p>
-                      <p style="margin:8px 0 0; font-size:14px; color:#345;">éléments restants à valider</p>
+                    <td style="padding:24px 22px;">
+                      <h1 style="margin:0; font-size:39px; line-height:1.25; color:#102a43;">Relance de validation d’inventaire</h1>
+                      <p style="margin:12px 0 0; font-size:15px; line-height:1.65; color:#334e68;">Organisation concernée&nbsp;: <strong>${safeOrg}</strong></p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 30px 0;">
+                <p style="margin:0; font-size:16px; line-height:1.7; color:#102a43;"><strong>Bonjour,</strong></p>
+                <p style="margin:12px 0 0; font-size:15px; line-height:1.75; color:#102a43;">L’inventaire de l’organisation <strong>${safeOrg}</strong> est toujours en cours de validation. Merci de compléter les éléments restants dès que possible.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 30px 6px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate; border-spacing:0; background:#f3f8ff; border:1px solid #cfe4ff; border-radius:12px;">
+                  <tr>
+                    <td style="padding:20px 22px;">
+                      <p style="margin:0; font-size:14px; color:#486581; text-transform:uppercase; letter-spacing:0.4px;">Progression actuelle</p>
+                      <p style="margin:8px 0 0; font-size:31px; line-height:1.2; font-weight:700; color:#0f6ecd;">${remainingCount} / ${totalCount}</p>
+                      <p style="margin:8px 0 0; font-size:14px; color:#334e68;">éléments restants à valider</p>
                     </td>
                   </tr>
                 </table>
                 ${supportCard}
-                <p style="margin:24px 0 0; font-size:15px; line-height:1.7; color:#1f2d3d;">Merci de votre collaboration.</p>
-                <p style="margin:8px 0 0; font-size:14px; color:#5a6b7f;">Équipe de coordination Cisco · Santé Québec</p>
               </td>
             </tr>
             <tr>
-              <td style="padding:16px 30px; background:#f8fafc; border-top:1px solid #e6ecf3;">
-                <p style="margin:0; font-size:12px; line-height:1.5; color:#6b7b8f;">Ce message a été envoyé automatiquement depuis <strong>santequebec@cisco.com</strong>.</p>
+              <td style="padding:14px 30px 28px;">
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#102a43;">Merci de votre collaboration.</p>
+                <p style="margin:8px 0 0; font-size:14px; color:#486581;">Équipe de coordination Cisco · Santé Québec</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 30px; background:#f8fafc; border-top:1px solid #dbe5f0;">
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#627d98;">Ce message a été envoyé automatiquement depuis <strong>santequebec@cisco.com</strong>.</p>
               </td>
             </tr>
           </table>
