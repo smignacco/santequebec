@@ -23,6 +23,7 @@ export class AuthService {
     const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name: input.name, email: input.email });
     const loginContext = {
       orgCode: input.orgCode,
+      pin: input.pin,
       accessId: access.id,
       ipAddress: context?.ipAddress || null,
       userAgent: context?.userAgent || null,
