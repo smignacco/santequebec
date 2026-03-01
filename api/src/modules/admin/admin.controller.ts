@@ -291,6 +291,24 @@ export class AdminController {
     });
   }
 
+  @Post('reminders/test-email')
+  async sendReminderTestEmail(@Req() req: any, @Body() body: { recipientEmail?: string }) {
+    this.assertAdmin(req);
+    const recipientEmail = body?.recipientEmail?.trim().toLowerCase();
+
+    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
+      throw new ConflictException('Adresse courriel de test invalide.');
+    }
+
+    return this.reminderService.sendTestReminderEmail({
+      recipientEmail,
+      admin: {
+        name: req.user?.name || 'Admin',
+        email: req.user?.email || 'admin@santequebec.local'
+      }
+    });
+  }
+
   @Post('reminders/:id/approve')
   async approveReminder(@Req() req: any, @Param('id') id: string) {
     this.assertAdmin(req);
