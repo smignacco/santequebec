@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX' | 'REMINDERS';
 
 const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ORG_PIN_MAX_LENGTH = 9;
@@ -666,6 +666,7 @@ export function AdminDashboard() {
           <div className="stack admin-nav-links">
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('VIDEO')}>Vidéo informationnelle</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('WEBEX')}>Intégration Webex Teams</button>
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('REMINDERS')}>Relances courriels</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('LIST')}>Liste des organisations</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('CREATE')}>Créer une organisation</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('ADMINS')}>Gestion des administrateurs</button>
@@ -738,6 +739,15 @@ export function AdminDashboard() {
             <input type="checkbox" checked={webexNotifyOnReminder} onChange={(e) => setWebexNotifyOnReminder(e.target.checked)} />
             <span>Notifier quand une relance inventaire est envoyée</span>
           </label>
+          <div className="button-row">
+            <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer Webex</button>
+            <button className="button secondary" type="button" onClick={testWebexSettings}>Tester la connexion</button>
+          </div>
+        </section>
+      ) : view === 'REMINDERS' ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <h3>Relances courriels</h3>
+          <p>Gérez les paramètres globaux et les approbations des relances automatisées.</p>
           <label className="button-row">
             <input type="checkbox" checked={reminderEmailEnabled} onChange={(e) => setReminderEmailEnabled(e.target.checked)} />
             <span>Activer le module de relance courriel (global)</span>
@@ -754,8 +764,7 @@ export function AdminDashboard() {
             />
           </label>
           <div className="button-row">
-            <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer Webex</button>
-            <button className="button secondary" type="button" onClick={testWebexSettings}>Tester la connexion</button>
+            <button className="button" type="button" onClick={saveWebexSettings}>Enregistrer les paramètres</button>
             <button className="button secondary" type="button" onClick={loadPendingReminderApprovals}>Actualiser les approbations</button>
           </div>
           <div className="stack">
