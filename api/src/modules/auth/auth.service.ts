@@ -15,8 +15,10 @@ export class AuthService {
 
     const orgCode = (input.orgCode || tokenPayload?.orgCode || '').trim();
     const pin = (input.pin || tokenPayload?.pin || '').trim();
+    const name = (input.name || tokenPayload?.name || '').trim();
+    const email = (input.email || tokenPayload?.email || '').trim();
 
-    if (!orgCode || !pin) throw new UnauthorizedException('Invalid credentials');
+    if (!orgCode || !pin || !name || !email) throw new UnauthorizedException('Invalid credentials');
 
     const org = await this.prisma.organization.findUnique({ where: { orgCode } });
     if (!org) throw new UnauthorizedException('Invalid credentials');
@@ -28,7 +30,7 @@ export class AuthService {
     const ok = await argon2.verify(access.pinHash, pin);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name: input.name, email: input.email });
+    const token = await this.jwt.signAsync({ role: 'ORG_USER', organizationId: org.id, batchId: access.batchId, name, email });
     const loginContext = {
       orgCode,
       pin,
@@ -43,8 +45,8 @@ export class AuthService {
         scope: 'ORG_ACCESS',
         scopeId: org.id,
         actorType: 'ORG_USER',
-        actorName: input.name,
-        actorEmail: input.email,
+        actorName: name,
+        actorEmail: email,
         action: 'ORG_LOGIN',
         detailsJson: JSON.stringify(loginContext)
       }
@@ -53,8 +55,8 @@ export class AuthService {
     await this.webexService.notifyOrgLogin({
       orgName: org.displayName,
       orgCode: org.orgCode,
-      requesterName: input.name,
-      requesterEmail: input.email,
+      requesterName: name,
+      requesterEmail: email,
       ipAddress: loginContext.ipAddress,
       userAgent: loginContext.userAgent,
       loggedAt: loginContext.loggedAt
