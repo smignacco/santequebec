@@ -78,6 +78,10 @@ export function AdminDashboard() {
   const [isOrgAccessLogsModalOpen, setIsOrgAccessLogsModalOpen] = useState(false);
   const [accessLogsOrg, setAccessLogsOrg] = useState<any | null>(null);
   const [orgAccessLogs, setOrgAccessLogs] = useState<any[]>([]);
+  const [isActiveSessionsModalOpen, setIsActiveSessionsModalOpen] = useState(false);
+  const [activeSessionsOrg, setActiveSessionsOrg] = useState<any | null>(null);
+  const [activeSessionsThresholdMinutes, setActiveSessionsThresholdMinutes] = useState(20);
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
   const [selectedReminderPreview, setSelectedReminderPreview] = useState<any | null>(null);
   const [isReminderPreviewOpen, setIsReminderPreviewOpen] = useState(false);
   const [isBusyAction, setIsBusyAction] = useState('');
@@ -572,6 +576,21 @@ export function AdminDashboard() {
     setOrgAccessLogs([]);
   };
 
+  const openActiveSessionsModal = async (org: any) => {
+    const out = await api(`/admin/orgs/${org.id}/active-sessions`);
+    setActiveSessionsOrg(org);
+    setActiveSessionsThresholdMinutes(Number(out?.thresholdMinutes) || 20);
+    setActiveSessions(Array.isArray(out?.activeSessions) ? out.activeSessions : []);
+    setIsActiveSessionsModalOpen(true);
+  };
+
+  const closeActiveSessionsModal = () => {
+    setIsActiveSessionsModalOpen(false);
+    setActiveSessionsOrg(null);
+    setActiveSessions([]);
+    setActiveSessionsThresholdMinutes(20);
+  };
+
   const resetOrgAccessLogs = async () => {
     if (!accessLogsOrg) return;
     const confirmed = window.confirm(`Réinitialiser les journaux d'accès de l'organisation « ${accessLogsOrg.displayName} » ?`);
@@ -1009,6 +1028,7 @@ export function AdminDashboard() {
                   <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('progress')}>Progression confirmée</button></th>
                   <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('latestInventoryStatus')}>Statut inventaire</button></th>
                   <th><button className="header-filter" type="button" onClick={() => toggleOrgSort('loginCount')}>Connexions</button></th>
+                  <th>Sessions actives</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -1039,6 +1059,11 @@ export function AdminDashboard() {
                     <td>
                       <button className="link-button" type="button" onClick={() => openOrgAccessLogs(o)}>
                         {o.loginCount || 0}
+                      </button>
+                    </td>
+                    <td>
+                      <button className="link-button" type="button" onClick={() => openActiveSessionsModal(o)}>
+                        {o.activeSessionCount || 0}
                       </button>
                     </td>
                     <td>
@@ -1383,6 +1408,50 @@ export function AdminDashboard() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {isActiveSessionsModalOpen && activeSessionsOrg && (
+        <div className="modal-backdrop" role="presentation" onClick={closeActiveSessionsModal}>
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Sessions actives" onClick={(event) => event.stopPropagation()}>
+            <div className="stack">
+              <h3>Sessions actives · {activeSessionsOrg.displayName}</h3>
+              <p>Utilisateurs actifs (dernières {activeSessionsThresholdMinutes} minutes): <strong>{activeSessions.length}</strong></p>
+              <div className="button-row" style={{ justifyContent: 'flex-end' }}>
+                <button className="button secondary" type="button" onClick={closeActiveSessionsModal}>Fermer</button>
+              </div>
+
+              {!activeSessions.length && <p>Aucune session active détectée pour cette organisation.</p>}
+              {!!activeSessions.length && (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nom</th>
+                        <th>Courriel</th>
+                        <th>Dernière activité</th>
+                        <th>Dernière action</th>
+                        <th>Adresse IP</th>
+                        <th>Fureteur</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeSessions.map((session) => (
+                        <tr key={session.actorEmail}>
+                          <td>{session.actorName || '-'}</td>
+                          <td>{session.actorEmail || '-'}</td>
+                          <td>{session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString('fr-CA') : '-'}</td>
+                          <td>{session.lastAction || '-'}</td>
+                          <td>{session.ipAddress || '-'}</td>
+                          <td>{session.userAgent || '-'}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

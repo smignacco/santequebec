@@ -15,6 +15,7 @@ import { ReminderService } from '../reminder/reminder.service';
 export class AdminController {
   constructor(private prisma: PrismaService, private webexService: WebexService, private reminderService: ReminderService) {}
   private static readonly WELCOME_VIDEO_DIR = join(process.cwd(), 'public', 'uploads', 'welcome-video');
+  private static readonly ACTIVE_SESSION_WINDOW_MINUTES = 20;
   private static readonly EXPORTABLE_INVENTORY_COLUMNS = [
     'rowNumber',
     'assetTag',
@@ -49,6 +50,10 @@ export class AdminController {
   ] as const;
 
   private assertAdmin(req: any) { if (req.user?.role !== 'ADMIN') throw new UnauthorizedException(); }
+
+  private getActiveSessionThresholdDate() {
+    return new Date(Date.now() - (AdminController.ACTIVE_SESSION_WINDOW_MINUTES * 60 * 1000));
+  }
 
   private parseExcelRows(file: Express.Multer.File) {
     if (!file) {
@@ -365,6 +370,7 @@ export class AdminController {
     this.assertAdmin(req);
     const organizations = await this.prisma.organization.findMany({ include: { organizationType: true } });
     const orgIds = organizations.map((org) => org.id);
+    const activeSessionThreshold = this.getActiveSessionThresholdDate();
 
     const inventoryFiles = orgIds.length
       ? await this.prisma.inventoryFile.findMany({
@@ -427,14 +433,96 @@ export class AdminController {
 
     const confirmedCountByFileId = new Map(confirmedCountsByFileId.map((entry) => [entry.inventoryFileId, entry._count._all]));
 
+    const recentOrgActivityLogs = orgIds.length
+      ? await this.prisma.auditLog.findMany({
+          where: {
+            scopeId: { in: orgIds },
+            actorType: 'ORG_USER',
+            createdAt: { gte: activeSessionThreshold }
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      : [];
+
+    const latestActiveSessionByOrgAndEmail = new Map<string, { organizationId: string; actorEmail: string; createdAt: Date }>();
+    recentOrgActivityLogs.forEach((log) => {
+      const actorEmail = (log.actorEmail || '').trim().toLowerCase();
+      if (!actorEmail) return;
+      const key = `${log.scopeId}:${actorEmail}`;
+      const existing = latestActiveSessionByOrgAndEmail.get(key);
+      if (!existing || existing.createdAt < log.createdAt) {
+        latestActiveSessionByOrgAndEmail.set(key, {
+          organizationId: log.scopeId,
+          actorEmail,
+          createdAt: log.createdAt
+        });
+      }
+    });
+
+    const activeSessionCountByOrgId = new Map<string, number>();
+    latestActiveSessionByOrgAndEmail.forEach((session) => {
+      activeSessionCountByOrgId.set(session.organizationId, (activeSessionCountByOrgId.get(session.organizationId) || 0) + 1);
+    });
+
     return organizations.map((organization) => ({
       ...organization,
       loginCount: countByOrgId.get(organization.id) || 0,
       inValidationCount: inventoryStatsByOrgId.get(organization.id)?.inValidationCount || 0,
       latestInventoryStatus: inventoryStatsByOrgId.get(organization.id)?.latestInventoryStatus || null,
       latestInventoryRowCount: inventoryStatsByOrgId.get(organization.id)?.latestInventoryRowCount || 0,
-      latestInventoryConfirmedCount: confirmedCountByFileId.get(inventoryStatsByOrgId.get(organization.id)?.latestInventoryFileId || '') || 0
+      latestInventoryConfirmedCount: confirmedCountByFileId.get(inventoryStatsByOrgId.get(organization.id)?.latestInventoryFileId || '') || 0,
+      activeSessionCount: activeSessionCountByOrgId.get(organization.id) || 0
     }));
+  }
+
+  @Get('orgs/:orgId/active-sessions')
+  async listActiveOrgSessions(@Req() req: any, @Param('orgId') orgId: string) {
+    this.assertAdmin(req);
+
+    const activeSessionThreshold = this.getActiveSessionThresholdDate();
+    const recentLogs = await this.prisma.auditLog.findMany({
+      where: {
+        scopeId: orgId,
+        actorType: 'ORG_USER',
+        createdAt: { gte: activeSessionThreshold }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const sessionsByActorEmail = new Map<string, {
+      actorName: string;
+      actorEmail: string;
+      lastActivityAt: Date;
+      lastAction: string;
+      ipAddress: string | null;
+      userAgent: string | null;
+    }>();
+
+    recentLogs.forEach((log) => {
+      const actorEmail = (log.actorEmail || '').trim().toLowerCase();
+      if (!actorEmail || sessionsByActorEmail.has(actorEmail)) return;
+
+      let details: any = {};
+      try {
+        details = JSON.parse(log.detailsJson || '{}');
+      } catch {
+        details = {};
+      }
+
+      sessionsByActorEmail.set(actorEmail, {
+        actorName: log.actorName || '-',
+        actorEmail,
+        lastActivityAt: log.createdAt,
+        lastAction: log.action,
+        ipAddress: details.ipAddress || null,
+        userAgent: details.userAgent || null
+      });
+    });
+
+    return {
+      thresholdMinutes: AdminController.ACTIVE_SESSION_WINDOW_MINUTES,
+      activeSessions: Array.from(sessionsByActorEmail.values())
+    };
   }
 
   @Get('orgs/:orgId/details')
