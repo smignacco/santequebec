@@ -650,6 +650,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     });
 
     parsed.searchParams.set('t', token);
+    if (payload.fullName?.trim()) parsed.searchParams.set('name', payload.fullName.trim());
+    if (payload.email?.trim()) parsed.searchParams.set('email', payload.email.trim());
 
     return parsed.toString();
   }
