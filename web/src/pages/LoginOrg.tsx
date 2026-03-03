@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { saveToken } from '../auth';
@@ -22,6 +22,7 @@ export function LoginOrg() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmittingOrg, setIsSubmittingOrg] = useState(false);
   const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+  const hasAutoLoginAttempted = useRef(false);
   const nav = useNavigate();
 
   const validateOrg = () => {
@@ -55,6 +56,31 @@ export function LoginOrg() {
       email: emailFromUrl || prev.email
     }));
   }, [emailFromUrl, nameFromUrl, orgCodeFromUrl, pinFromUrl]);
+
+  useEffect(() => {
+    if (!loginTokenFromUrl || hasAutoLoginAttempted.current) return;
+    hasAutoLoginAttempted.current = true;
+
+    const loginFromToken = async () => {
+      try {
+        setIsSubmittingOrg(true);
+        setError('');
+        const data = await api('/auth/org-login', { method: 'POST', body: JSON.stringify({
+          loginToken: loginTokenFromUrl,
+          name: nameFromUrl || orgForm.name,
+          email: emailFromUrl || orgForm.email
+        }) });
+        saveToken(data.token);
+        nav('/org');
+      } catch {
+        setError('Le lien de connexion est invalide ou expiré. Veuillez vous authentifier manuellement.');
+      } finally {
+        setIsSubmittingOrg(false);
+      }
+    };
+
+    loginFromToken();
+  }, [emailFromUrl, loginTokenFromUrl, nameFromUrl, nav, orgForm.email, orgForm.name]);
 
   const submitOrg = async (e: FormEvent) => {
     e.preventDefault();
