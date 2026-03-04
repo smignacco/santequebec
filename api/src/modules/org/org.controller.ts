@@ -29,6 +29,7 @@ export class OrgController {
     'manualEntry',
     'status'
   ] as const;
+  private static readonly VALIDATED_ITEM_STATUSES = ['CONFIRMED', 'TO_BE_REMOVED', 'NEEDS_CLARIFICATION'] as const;
 
   private ensureInventoryEditable(inventoryFile: { isLocked: boolean; status: string }) {
     if (inventoryFile.isLocked) {
@@ -157,7 +158,9 @@ export class OrgController {
     }
 
     const total = await this.prisma.inventoryItem.count({ where: { inventoryFileId: file.id } });
-    const confirmed = await this.prisma.inventoryItem.count({ where: { inventoryFileId: file.id, status: { in: ['CONFIRMED', 'TO_BE_REMOVED'] } } });
+    const confirmed = await this.prisma.inventoryItem.count({
+      where: { inventoryFileId: file.id, status: { in: [...OrgController.VALIDATED_ITEM_STATUSES] } }
+    });
     const filteredTotal = await this.prisma.inventoryItem.count({ where });
     const items = await this.prisma.inventoryItem.findMany({ where, skip: (p - 1) * ps, take: ps, orderBy: { rowNumber: 'asc' } });
 
@@ -386,7 +389,7 @@ export class OrgController {
     const unvalidatedCount = await this.prisma.inventoryItem.count({
       where: {
         inventoryFileId: inv.id,
-        status: { notIn: ['CONFIRMED', 'TO_BE_REMOVED'] }
+        status: { notIn: [...OrgController.VALIDATED_ITEM_STATUSES] }
       }
     });
 
