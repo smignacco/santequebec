@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX' | 'REMINDERS';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX' | 'REMINDERS' | 'EXEC_SUMMARY';
 
 const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ORG_PIN_MAX_LENGTH = 9;
@@ -85,6 +85,8 @@ export function AdminDashboard() {
   const [selectedReminderPreview, setSelectedReminderPreview] = useState<any | null>(null);
   const [isReminderPreviewOpen, setIsReminderPreviewOpen] = useState(false);
   const [isBusyAction, setIsBusyAction] = useState('');
+  const [inventorySummary, setInventorySummary] = useState<any | null>(null);
+  const [isLoadingInventorySummary, setIsLoadingInventorySummary] = useState(false);
 
   const runBusyAction = async (key: string, callback: () => Promise<void>) => {
     if (isBusyAction) return;
@@ -130,6 +132,16 @@ export function AdminDashboard() {
     setPendingReminderApprovals(Array.isArray(rows) ? rows : []);
   };
 
+  const loadInventorySummary = async () => {
+    setIsLoadingInventorySummary(true);
+    try {
+      const out = await api('/admin/inventory-summary');
+      setInventorySummary(out);
+    } finally {
+      setIsLoadingInventorySummary(false);
+    }
+  };
+
   const runReminderCycle = async () => {
     await runBusyAction('run-reminder-cycle', async () => {
       const out = await api('/admin/reminders/run-cycle', { method: 'POST' });
@@ -155,7 +167,7 @@ export function AdminDashboard() {
   };
 
   useEffect(() => {
-    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
+    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals(), loadInventorySummary()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
 
   useEffect(() => {
@@ -738,6 +750,7 @@ export function AdminDashboard() {
         <aside className="panel stack admin-nav">
           <h3>Navigation</h3>
           <div className="stack admin-nav-links">
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('EXEC_SUMMARY')}>Sommaire exécutif</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('VIDEO')}>Vidéo informationnelle</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('WEBEX')}>Intégration Webex Teams</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('REMINDERS')}>Relances courriels</button>
@@ -748,7 +761,82 @@ export function AdminDashboard() {
         </aside>
 
         <div className="stack admin-content">
-      {view === 'VIDEO' ? (
+      {view === 'EXEC_SUMMARY' ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <h3>Sommaire exécutif de l&apos;inventaire</h3>
+          <p>Répartition des quantités selon la famille de produit (Product Type) et le numéro de produit (Product ID) pour le plus récent inventaire de chaque organisation.</p>
+
+          <div className="button-row">
+            <button className="button secondary" type="button" onClick={loadInventorySummary} disabled={isLoadingInventorySummary}>
+              {isLoadingInventorySummary ? 'Chargement...' : 'Actualiser le sommaire'}
+            </button>
+          </div>
+
+          {inventorySummary ? (
+            <>
+              <div className="admin-summary-kpis">
+                <article className="panel">
+                  <h4>Fichiers d&apos;inventaire analysés</h4>
+                  <p>{inventorySummary.totals?.inventoryFiles || 0}</p>
+                </article>
+                <article className="panel">
+                  <h4>Quantité totale</h4>
+                  <p>{Math.round(inventorySummary.totals?.totalQuantity || 0)}</p>
+                </article>
+                <article className="panel">
+                  <h4>Product Type + Product ID</h4>
+                  <p>{Math.round(inventorySummary.totals?.withBoth || 0)}</p>
+                </article>
+              </div>
+
+              <section className="panel stack">
+                <h4>Diagramme de Venn (quantités)</h4>
+                <div className="venn-chart" role="img" aria-label="Diagramme de Venn de la couverture Product Type et Product ID">
+                  <div className="venn-circle venn-type">
+                    <span>Famille de produit
+                      <strong>{Math.max(0, Math.round((inventorySummary.totals?.withProductType || 0) - (inventorySummary.totals?.withBoth || 0)))}</strong>
+                    </span>
+                  </div>
+                  <div className="venn-circle venn-id">
+                    <span>Numéro de produit
+                      <strong>{Math.max(0, Math.round((inventorySummary.totals?.withProductId || 0) - (inventorySummary.totals?.withBoth || 0)))}</strong>
+                    </span>
+                  </div>
+                  <div className="venn-overlap">
+                    <span>Intersection
+                      <strong>{Math.round(inventorySummary.totals?.withBoth || 0)}</strong>
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <div className="admin-summary-grid">
+                <section className="panel stack">
+                  <h4>Top 10 familles de produit</h4>
+                  {(inventorySummary.productTypes || []).map((row: any) => (
+                    <div key={row.label} className="summary-row">
+                      <span>{row.label}</span>
+                      <strong>{Math.round(row.quantity || 0)}</strong>
+                    </div>
+                  ))}
+                </section>
+
+                <section className="panel stack">
+                  <h4>Top 10 numéros de produit</h4>
+                  {(inventorySummary.productIds || []).map((row: any) => (
+                    <div key={row.label} className="summary-row">
+                      <span>{row.label}</span>
+                      <strong>{Math.round(row.quantity || 0)}</strong>
+                    </div>
+                  ))}
+                </section>
+              </div>
+            </>
+          ) : (
+            <p>Aucune donnée de sommaire disponible.</p>
+          )}
+        </section>
+      ) : view === 'VIDEO' ? (
         <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Vidéo informationnelle</h3>
           <label className="stack">
