@@ -475,6 +475,91 @@ export class AdminController {
     }));
   }
 
+  @Get('inventory-summary')
+  async getInventorySummary(@Req() req: any) {
+    this.assertAdmin(req);
+
+    const latestInventoryByOrg = await this.prisma.inventoryFile.findMany({
+      distinct: ['organizationId'],
+      orderBy: [{ organizationId: 'asc' }, { importedAt: 'desc' }],
+      select: {
+        id: true,
+        organizationId: true,
+        rowCount: true,
+        organization: { select: { displayName: true, orgCode: true } }
+      }
+    });
+
+    const latestInventoryFileIds = latestInventoryByOrg.map((entry) => entry.id);
+    if (!latestInventoryFileIds.length) {
+      return {
+        totals: {
+          inventoryFiles: 0,
+          totalQuantity: 0,
+          architectureCount: 0
+        },
+        architectures: [],
+        productIds: [],
+        establishments: []
+      };
+    }
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { inventoryFileId: { in: latestInventoryFileIds } },
+      select: { architecture: true, productId: true, quantity: true }
+    });
+
+    const parseQuantity = (value: string | null) => {
+      if (!value) return 1;
+      const normalized = String(value).replace(',', '.').trim();
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+      return parsed;
+    };
+
+    const architectureMap = new Map<string, number>();
+    const productIdMap = new Map<string, number>();
+    let totalQuantity = 0;
+
+    items.forEach((item) => {
+      const quantity = parseQuantity(item.quantity);
+      totalQuantity += quantity;
+
+      const architecture = item.architecture?.trim();
+      const productId = item.productId?.trim();
+
+      if (architecture) {
+        architectureMap.set(architecture, (architectureMap.get(architecture) || 0) + quantity);
+      }
+      if (productId) {
+        productIdMap.set(productId, (productIdMap.get(productId) || 0) + quantity);
+      }
+    });
+
+    const toSortedRows = (input: Map<string, number>, limit?: number) => {
+      const rows = Array.from(input.entries())
+        .map(([label, quantity]) => ({ label, quantity }))
+        .sort((a, b) => b.quantity - a.quantity);
+      return typeof limit === 'number' ? rows.slice(0, limit) : rows;
+    };
+
+    return {
+      totals: {
+        inventoryFiles: latestInventoryFileIds.length,
+        totalQuantity,
+        architectureCount: architectureMap.size
+      },
+      architectures: toSortedRows(architectureMap),
+      productIds: toSortedRows(productIdMap, 25),
+      establishments: latestInventoryByOrg
+        .map((entry) => ({
+          label: entry.organization?.displayName || entry.organization?.orgCode || entry.organizationId,
+          quantity: entry.rowCount || 0
+        }))
+        .sort((a, b) => b.quantity - a.quantity)
+    };
+  }
+
   @Get('orgs/:orgId/active-sessions')
   async listActiveOrgSessions(@Req() req: any, @Param('orgId') orgId: string) {
     this.assertAdmin(req);

@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { api, apiForm, apiFormWithProgress } from '../api/client';
 import { AppShell } from '../components/AppShell';
 
-type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX' | 'REMINDERS';
+type AdminView = 'LIST' | 'CREATE' | 'ADMINS' | 'VIDEO' | 'WEBEX' | 'REMINDERS' | 'EXEC_SUMMARY';
 
 const ORG_PIN_ALLOWED_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ORG_PIN_MAX_LENGTH = 9;
@@ -85,6 +85,8 @@ export function AdminDashboard() {
   const [selectedReminderPreview, setSelectedReminderPreview] = useState<any | null>(null);
   const [isReminderPreviewOpen, setIsReminderPreviewOpen] = useState(false);
   const [isBusyAction, setIsBusyAction] = useState('');
+  const [inventorySummary, setInventorySummary] = useState<any | null>(null);
+  const [isLoadingInventorySummary, setIsLoadingInventorySummary] = useState(false);
 
   const runBusyAction = async (key: string, callback: () => Promise<void>) => {
     if (isBusyAction) return;
@@ -130,6 +132,16 @@ export function AdminDashboard() {
     setPendingReminderApprovals(Array.isArray(rows) ? rows : []);
   };
 
+  const loadInventorySummary = async () => {
+    setIsLoadingInventorySummary(true);
+    try {
+      const out = await api('/admin/inventory-summary');
+      setInventorySummary(out);
+    } finally {
+      setIsLoadingInventorySummary(false);
+    }
+  };
+
   const runReminderCycle = async () => {
     await runBusyAction('run-reminder-cycle', async () => {
       const out = await api('/admin/reminders/run-cycle', { method: 'POST' });
@@ -155,7 +167,7 @@ export function AdminDashboard() {
   };
 
   useEffect(() => {
-    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
+    Promise.all([loadOrgs(), loadAdminUsers(), loadAppSettings(), loadPendingReminderApprovals(), loadInventorySummary()]).catch(() => setMessage('Impossible de charger les données d\'administration.'));
   }, []);
 
   useEffect(() => {
@@ -738,6 +750,7 @@ export function AdminDashboard() {
         <aside className="panel stack admin-nav">
           <h3>Navigation</h3>
           <div className="stack admin-nav-links">
+            <button className="button secondary" type="button" onClick={() => navigateToMainSection('EXEC_SUMMARY')}>Sommaire exécutif</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('VIDEO')}>Vidéo informationnelle</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('WEBEX')}>Intégration Webex Teams</button>
             <button className="button secondary" type="button" onClick={() => navigateToMainSection('REMINDERS')}>Relances courriels</button>
@@ -748,7 +761,109 @@ export function AdminDashboard() {
         </aside>
 
         <div className="stack admin-content">
-      {view === 'VIDEO' ? (
+      {view === 'EXEC_SUMMARY' ? (
+        <section id="admin-main-section" className="panel stack admin-tile">
+          <h3>Sommaire exécutif de l&apos;inventaire</h3>
+          <p>Répartition des quantités selon les architectures et les numéros de produits pour le plus récent inventaire de chaque établissement.</p>
+
+          <div className="button-row">
+            <button className="button secondary" type="button" onClick={loadInventorySummary} disabled={isLoadingInventorySummary}>
+              {isLoadingInventorySummary ? 'Chargement...' : 'Actualiser le sommaire'}
+            </button>
+          </div>
+
+          {inventorySummary ? (
+            <>
+              <div className="admin-summary-kpis">
+                <article className="panel">
+                  <h4>Inventaire d&apos;établissement analysés</h4>
+                  <p>{inventorySummary.totals?.inventoryFiles || 0}</p>
+                </article>
+                <article className="panel">
+                  <h4>Quantité totale</h4>
+                  <p>{Math.round(inventorySummary.totals?.totalQuantity || 0)}</p>
+                </article>
+                <article className="panel">
+                  <h4>Architectures globales</h4>
+                  <p>{Math.round(inventorySummary.totals?.architectureCount || 0)}</p>
+                </article>
+              </div>
+
+              <section className="panel stack">
+                <h4>Diagramme circulaire des architectures</h4>
+                {(() => {
+                  const architectures = Array.isArray(inventorySummary.architectures) ? inventorySummary.architectures : [];
+                  const topArchitectures = architectures.slice(0, 7);
+                  const otherQuantity = architectures.slice(7).reduce((acc: number, row: any) => acc + Number(row.quantity || 0), 0);
+                  const pieRows = otherQuantity > 0 ? [...topArchitectures, { label: 'Autres', quantity: otherQuantity }] : topArchitectures;
+                  const total = pieRows.reduce((acc: number, row: any) => acc + Number(row.quantity || 0), 0);
+                  const colors = ['#00bceb', '#005073', '#1f9d55', '#ca8a04', '#7c3aed', '#d946ef', '#fb7185', '#64748b'];
+                  let cumulative = 0;
+
+                  const toArc = (startRatio: number, endRatio: number) => {
+                    const startAngle = (startRatio * Math.PI * 2) - (Math.PI / 2);
+                    const endAngle = (endRatio * Math.PI * 2) - (Math.PI / 2);
+                    const x1 = 120 + (90 * Math.cos(startAngle));
+                    const y1 = 120 + (90 * Math.sin(startAngle));
+                    const x2 = 120 + (90 * Math.cos(endAngle));
+                    const y2 = 120 + (90 * Math.sin(endAngle));
+                    const largeArc = endRatio - startRatio > 0.5 ? 1 : 0;
+                    return `M 120 120 L ${x1} ${y1} A 90 90 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                  };
+
+                  return (
+                    <div className="pie-layout">
+                      <svg className="pie-chart" viewBox="0 0 240 240" role="img" aria-label="Répartition des architectures">
+                        {pieRows.map((row: any, index: number) => {
+                          const share = total ? Number(row.quantity || 0) / total : 0;
+                          const start = cumulative;
+                          cumulative += share;
+                          return <path key={row.label} d={toArc(start, cumulative)} fill={colors[index % colors.length]} stroke="#ffffff" strokeWidth={1} />;
+                        })}
+                      </svg>
+                      <div className="pie-legend stack">
+                        {pieRows.map((row: any, index: number) => {
+                          const ratio = total ? (Number(row.quantity || 0) / total) * 100 : 0;
+                          return (
+                            <div className="summary-row" key={row.label}>
+                              <span><i className="legend-dot" style={{ backgroundColor: colors[index % colors.length] }} />{row.label}</span>
+                              <strong>{Math.round(ratio)}%</strong>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </section>
+
+              <div className="admin-summary-grid">
+                <section className="panel stack">
+                  <h4>Établissements et quantité d&apos;entrées</h4>
+                  {(inventorySummary.establishments || []).map((row: any) => (
+                    <div key={row.label} className="summary-row">
+                      <span>{row.label}</span>
+                      <strong>{Math.round(row.quantity || 0)}</strong>
+                    </div>
+                  ))}
+                </section>
+
+                <section className="panel stack">
+                  <h4>Top 25 numéros de produit</h4>
+                  {(inventorySummary.productIds || []).map((row: any) => (
+                    <div key={row.label} className="summary-row">
+                      <span>{row.label}</span>
+                      <strong>{Math.round(row.quantity || 0)}</strong>
+                    </div>
+                  ))}
+                </section>
+              </div>
+            </>
+          ) : (
+            <p>Aucune donnée de sommaire disponible.</p>
+          )}
+        </section>
+      ) : view === 'VIDEO' ? (
         <section id="admin-main-section" className="panel stack admin-tile">
           <h3>Vidéo informationnelle</h3>
           <label className="stack">
