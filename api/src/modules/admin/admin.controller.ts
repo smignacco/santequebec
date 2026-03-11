@@ -475,6 +475,89 @@ export class AdminController {
     }));
   }
 
+  @Get('inventory-summary')
+  async getInventorySummary(@Req() req: any) {
+    this.assertAdmin(req);
+
+    const latestInventoryByOrg = await this.prisma.inventoryFile.findMany({
+      distinct: ['organizationId'],
+      orderBy: [{ organizationId: 'asc' }, { importedAt: 'desc' }],
+      select: { id: true, organizationId: true }
+    });
+
+    const latestInventoryFileIds = latestInventoryByOrg.map((entry) => entry.id);
+    if (!latestInventoryFileIds.length) {
+      return {
+        totals: {
+          inventoryFiles: 0,
+          totalQuantity: 0,
+          withProductType: 0,
+          withProductId: 0,
+          withBoth: 0
+        },
+        productTypes: [],
+        productIds: []
+      };
+    }
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { inventoryFileId: { in: latestInventoryFileIds } },
+      select: { productType: true, productId: true, quantity: true }
+    });
+
+    const parseQuantity = (value: string | null) => {
+      if (!value) return 1;
+      const normalized = String(value).replace(',', '.').trim();
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+      return parsed;
+    };
+
+    const productTypeMap = new Map<string, number>();
+    const productIdMap = new Map<string, number>();
+    let withProductType = 0;
+    let withProductId = 0;
+    let withBoth = 0;
+    let totalQuantity = 0;
+
+    items.forEach((item) => {
+      const quantity = parseQuantity(item.quantity);
+      totalQuantity += quantity;
+
+      const productType = item.productType?.trim();
+      const productId = item.productId?.trim();
+
+      if (productType) {
+        withProductType += quantity;
+        productTypeMap.set(productType, (productTypeMap.get(productType) || 0) + quantity);
+      }
+      if (productId) {
+        withProductId += quantity;
+        productIdMap.set(productId, (productIdMap.get(productId) || 0) + quantity);
+      }
+      if (productType && productId) {
+        withBoth += quantity;
+      }
+    });
+
+    const toSortedRows = (input: Map<string, number>) => Array.from(input.entries())
+      .map(([label, quantity]) => ({ label, quantity }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+
+    return {
+      totals: {
+        inventoryFiles: latestInventoryFileIds.length,
+        totalQuantity,
+        withProductType,
+        withProductId,
+        withBoth
+      },
+      productTypes: toSortedRows(productTypeMap),
+      productIds: toSortedRows(productIdMap)
+    };
+  }
+
   @Get('orgs/:orgId/active-sessions')
   async listActiveOrgSessions(@Req() req: any, @Param('orgId') orgId: string) {
     this.assertAdmin(req);
