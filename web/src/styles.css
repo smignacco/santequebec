@@ -550,52 +550,34 @@ progress {
   padding-bottom: 0.45rem;
 }
 
-.venn-chart {
-  position: relative;
-  height: 220px;
-  max-width: 520px;
-}
-
-.venn-circle {
-  position: absolute;
-  top: 20px;
-  width: 190px;
-  height: 190px;
-  border-radius: 50%;
-  display: flex;
+.pie-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 1rem;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1rem;
 }
 
-.venn-circle strong,
-.venn-overlap strong {
-  display: block;
-  font-size: 1.25rem;
-  margin-top: 0.35rem;
+.pie-chart {
+  width: 240px;
+  height: 240px;
+  margin: 0 auto;
 }
 
-.venn-type {
-  left: 70px;
-  background: rgba(0, 188, 235, 0.2);
-  border: 2px solid rgba(0, 188, 235, 0.65);
+.pie-legend {
+  gap: 0.55rem;
 }
 
-.venn-id {
-  left: 220px;
-  background: rgba(0, 80, 115, 0.2);
-  border: 2px solid rgba(0, 80, 115, 0.7);
+.legend-dot {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  margin-right: 0.45rem;
+  vertical-align: middle;
 }
 
-.venn-overlap {
-  position: absolute;
-  left: 210px;
-  top: 86px;
-  min-width: 96px;
-  padding: 0.7rem;
-  border-radius: 12px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #c9d7e6;
+@media (max-width: 980px) {
+  .pie-layout {
+    grid-template-columns: 1fr;
+  }
 }

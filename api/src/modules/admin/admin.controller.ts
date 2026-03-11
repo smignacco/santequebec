@@ -482,7 +482,12 @@ export class AdminController {
     const latestInventoryByOrg = await this.prisma.inventoryFile.findMany({
       distinct: ['organizationId'],
       orderBy: [{ organizationId: 'asc' }, { importedAt: 'desc' }],
-      select: { id: true, organizationId: true }
+      select: {
+        id: true,
+        organizationId: true,
+        rowCount: true,
+        organization: { select: { displayName: true, orgCode: true } }
+      }
     });
 
     const latestInventoryFileIds = latestInventoryByOrg.map((entry) => entry.id);
@@ -491,18 +496,17 @@ export class AdminController {
         totals: {
           inventoryFiles: 0,
           totalQuantity: 0,
-          withProductType: 0,
-          withProductId: 0,
-          withBoth: 0
+          architectureCount: 0
         },
-        productTypes: [],
-        productIds: []
+        architectures: [],
+        productIds: [],
+        establishments: []
       };
     }
 
     const items = await this.prisma.inventoryItem.findMany({
       where: { inventoryFileId: { in: latestInventoryFileIds } },
-      select: { productType: true, productId: true, quantity: true }
+      select: { architecture: true, productId: true, quantity: true }
     });
 
     const parseQuantity = (value: string | null) => {
@@ -513,48 +517,46 @@ export class AdminController {
       return parsed;
     };
 
-    const productTypeMap = new Map<string, number>();
+    const architectureMap = new Map<string, number>();
     const productIdMap = new Map<string, number>();
-    let withProductType = 0;
-    let withProductId = 0;
-    let withBoth = 0;
     let totalQuantity = 0;
 
     items.forEach((item) => {
       const quantity = parseQuantity(item.quantity);
       totalQuantity += quantity;
 
-      const productType = item.productType?.trim();
+      const architecture = item.architecture?.trim();
       const productId = item.productId?.trim();
 
-      if (productType) {
-        withProductType += quantity;
-        productTypeMap.set(productType, (productTypeMap.get(productType) || 0) + quantity);
+      if (architecture) {
+        architectureMap.set(architecture, (architectureMap.get(architecture) || 0) + quantity);
       }
       if (productId) {
-        withProductId += quantity;
         productIdMap.set(productId, (productIdMap.get(productId) || 0) + quantity);
-      }
-      if (productType && productId) {
-        withBoth += quantity;
       }
     });
 
-    const toSortedRows = (input: Map<string, number>) => Array.from(input.entries())
-      .map(([label, quantity]) => ({ label, quantity }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10);
+    const toSortedRows = (input: Map<string, number>, limit?: number) => {
+      const rows = Array.from(input.entries())
+        .map(([label, quantity]) => ({ label, quantity }))
+        .sort((a, b) => b.quantity - a.quantity);
+      return typeof limit === 'number' ? rows.slice(0, limit) : rows;
+    };
 
     return {
       totals: {
         inventoryFiles: latestInventoryFileIds.length,
         totalQuantity,
-        withProductType,
-        withProductId,
-        withBoth
+        architectureCount: architectureMap.size
       },
-      productTypes: toSortedRows(productTypeMap),
-      productIds: toSortedRows(productIdMap)
+      architectures: toSortedRows(architectureMap),
+      productIds: toSortedRows(productIdMap, 25),
+      establishments: latestInventoryByOrg
+        .map((entry) => ({
+          label: entry.organization?.displayName || entry.organization?.orgCode || entry.organizationId,
+          quantity: entry.rowCount || 0
+        }))
+        .sort((a, b) => b.quantity - a.quantity)
     };
   }
 
